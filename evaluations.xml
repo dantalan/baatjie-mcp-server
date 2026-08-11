@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evaluation set for baatjie-mcp-server.
+
+  Each question requires several tool calls and some reasoning across tables.
+  All are read-only. Answers were verified against the live tanOS and sigscheCore
+  projects on 2026-08-09 and are drawn from structural or roster facts rather than
+  from tables that churn day to day (todos, daily_activity, locare_accounts), so
+  they remain stable as the group operates.
+-->
+<evaluation>
+
+  <qa_pair>
+    <question>The Baatjie Group's 26 Business Relationship Managers each inherited a book of policy members. What is the total size of all the inherited books combined?</question>
+    <answer>38527</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Across the BRM roster in tanOS, one manager carries a substantially larger inherited book than any other. What is the identifier of that BRM?</question>
+    <answer>nhlanhla-ai</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>The inherited policy books are very unevenly distributed across BRMs. What is the difference between the largest and the smallest book?</question>
+    <answer>5488</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>tanOS models rental accommodation at room level rather than whole properties, and the rooms table carries default values for the rent and each recoverable cost. Adding the default base rent to the defaults for water, electricity and gardening, what is the total default monthly cost of a single room in rand?</question>
+    <answer>3400</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>The AI Council roster is stored in tanOS. How many of the seats are C-Suite seats rather than any other seat type?</question>
+    <answer>13</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Counting how many BRMs carry an inherited book at or above 2000 members, what is the combined size of just those books?</question>
+    <answer>22124</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>The employer network is the collection rail for the group's policy business. How many distinct employers are recorded in tanOS?</question>
+    <answer>1237</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>tanOS records field agents who sell policies, and separately the BRMs those agents should roll up to. How many agent records currently have no BRM assigned to them?</question>
+    <answer>460</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>The AI Council seats each carry a heritage tradition label. How many distinct heritage traditions are represented across the whole roster?</question>
+    <answer>7</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Leases in tanOS default to a particular day of the month for rent to fall due, which the arrears ladder is built around. What is that default day?</question>
+    <answer>28</answer>
+  </qa_pair>
+
+</evaluation>

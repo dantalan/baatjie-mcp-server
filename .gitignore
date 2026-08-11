@@ -1,0 +1,28 @@
+# Secrets — these hold service_role keys that bypass RLS on both projects.
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Scratch files from manual curl testing
+body.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+init.json
+_gitprep.ps1
+_gitaudit.ps1
