@@ -16,7 +16,8 @@
     "build": "tsc",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "typecheck": "tsc --noEmit",
-    "test:harness": "node test-harness.mjs"
+    "test:harness": "node test-harness.mjs",
+    "test:rls": "node tests/rls-regression.mjs"
   },
   "engines": {
     "node": ">=18"

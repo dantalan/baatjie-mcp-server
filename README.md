@@ -159,11 +159,27 @@ reaches an occupant rather than after.
 npm run dev            # watch mode
 npm run build          # compile to dist/
 node test-harness.mjs  # protocol + guardrail checks (needs env vars set)
+npm run test:rls       # RLS isolation regression (needs TANOS_ANON_KEY too, see below)
 ```
 
 `test-harness.mjs` verifies initialisation, tool registration, annotation coverage,
 description quality, the delete confirmation guard, unfiltered-write refusal, Zod range
 validation, and actionable error text. All 13 checks should pass.
+
+`tests/rls-regression.mjs` automates the P0.1 isolation check that was previously run by
+hand: seeds two agencies and two real Supabase Auth users, confirms an unauthenticated
+(anon) read returns empty rather than erroring, confirms agency A can read its own row,
+and confirms agency A's cross-agency read/update/delete/insert against agency B's row
+are all blocked — then tears every fixture down in a `finally` block regardless of
+outcome. Needs `TANOS_ANON_KEY` in addition to the usual service key, since the whole
+point is to test as a non-privileged client rather than the key that bypasses RLS.
+Scoped to the 10 tables that actually carry `account_id` + policies today (landlords,
+properties, rooms, tenants, foreign_nationals, leases, lease_agreements, payments,
+maintenance, notices) — a live `get_advisors` check on 2026-08-11 found ten other
+tables (agents, ai_agents, audit_log, brms, daily_activity, employers, locare_accounts,
+member_consents, policies, todos) still have RLS enabled with zero policies. That's
+default-deny, not a live hole, but there's no per-agency scoping on those tables yet
+for a test like this one to exercise.
 
 `evaluations.xml` contains ten questions for testing whether an LLM can actually use
 this server to answer realistic operational questions.
