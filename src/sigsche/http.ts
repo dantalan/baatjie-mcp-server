@@ -7,6 +7,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import path from "node:path";
 import { openLogin } from "./browser.js";
 import { DIRECT_FIELDS } from "./direct.js";
+import { loadGodsview } from "./godsview.js";
 import {
   CARDS_DIR,
   COLLECTIONS,
@@ -160,6 +161,14 @@ export function mountSigsche(app: Express): void {
     }
     setSecret(pid, clean);
     res.json({ ok: true });
+  });
+
+  app.get("/api/godsview", async (_req, res) => {
+    try {
+      res.json(await loadGodsview());
+    } catch (e) {
+      fail(res, e, 500);
+    }
   });
 
   app.post("/api/upload", async (req, res) => {

@@ -31,6 +31,7 @@ import {
   todayISO,
   type Doc,
 } from "../sigsche/model.js";
+import { loadGodsview } from "../sigsche/godsview.js";
 import { platformRows, upload } from "../sigsche/service.js";
 import { respond, toErrorResponse } from "../services/format.js";
 import { responseFormatField } from "../schemas.js";
@@ -224,6 +225,43 @@ Returns: { "ok": true, "business": { ...record, "open": [] } }`,
         );
         const left = business.open.length ? `Still open: ${business.open.join(", ")}.` : "Record complete.";
         return respond(params.response_format, `Saved **${business.name}**. ${left}`, { ok: true, business });
+      } catch (error) {
+        return toErrorResponse(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "baatjie_sigsche_godsview",
+    {
+      title: "godsview: the property, live",
+      description: `One live read of the property from tanOS: every room, the tenant on its active lease, what has been paid since the last 28th, notices sent and open maintenance tickets, with totals.
+
+Read-only. It reports the position; it never sends a notice or changes a record. Only tenant names are read, no ID numbers, phones or emails.
+
+Returns:
+  { "today","property","cycle_start","days_into_cycle","days_to_rent_day",
+    "rooms": [{ "room_name","state": "paid"|"part"|"behind"|"new"|"nolease","tenant","due","paid","last_payment","notices","open_tickets" }],
+    "totals": { "rooms","occupied","paid","part","behind","expected","received","notices","open_tickets" } }`,
+      inputSchema: { response_format: responseFormatField },
+      annotations: READ,
+    },
+    async (params) => {
+      try {
+        const g = await loadGodsview();
+        const t = g.totals;
+        const md = [
+          `# godsview · ${g.property || "no property in tanOS yet"} · ${g.today}`,
+          `**Rooms** ${t.occupied}/${t.rooms} with a lease · **Paid** ${t.paid} · part ${t.part} · **behind** ${t.behind}`,
+          `**Money since ${g.cycle_start}** R${t.received} of R${t.expected} · ${g.days_to_rent_day} day(s) to the next 28th`,
+          `**Notices sent** ${t.notices} · **Open tickets** ${t.open_tickets}`,
+          "",
+          table(
+            ["room", "state", "tenant", "paid", "due", "last paid", "notices", "tickets"],
+            g.rooms.map((r) => [r.room_name, r.state, r.tenant || "–", r.paid, r.due, r.last_payment || "–", r.notices, r.open_tickets]),
+          ),
+        ].join("\n");
+        return respond(params.response_format, md, g as unknown as Record<string, unknown>);
       } catch (error) {
         return toErrorResponse(error);
       }

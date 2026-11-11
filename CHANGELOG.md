@@ -2,6 +2,21 @@
 
 One entry per version, newest first. Each version is one commit on the `sigsche-v13` branch.
 
+## v13.2 · 11.11.2026 · godsview
+
+- New **godsview** tab: one live screen for the property, read from tanOS and
+  refreshed every 15 seconds. Each room shows the tenant on its active lease,
+  what has been paid since the last 28th, the last payment date, notices sent
+  and open maintenance tickets, with totals across the property.
+- Read-only. It never sends a notice or changes a record, and reads tenant
+  names only (no ID numbers, phones or emails).
+- New MCP tool: `baatjie_sigsche_godsview`.
+
+Tested: the arithmetic against made-up fixture rows, a live read of tanOS from
+a second copy of the server, and the tab in a browser (empty state and a
+fixture state). Not yet tested with real rooms: on 11.11.2026 the tanOS
+property tables (properties, rooms, tenants, leases, payments) were empty.
+
 ## v13.1 · 11.11.2026 · business register
 
 - New **Businesses** tab: every business on one register, each with a record

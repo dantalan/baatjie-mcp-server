@@ -32,10 +32,12 @@ Everything sigsche holds lives in `data/` next to the server (git-ignored):
   posts the caption and card directly and ticks the platform.
 - Phone-only apps (Clubhouse, BeReal): the caption is copied.
 
-## MCP tools added (15)
+## MCP tools added (16)
 
 `baatjie_sigsche_overview`, `_brands`, `_platforms`, `_platform_set`, `_signals`, `_compose`,
-`_mark_posted`, `_leads`, `_lead_save`, `_taluna`, `_taluna_write`, `_login`, `_upload`, and from v13.1 `_businesses`, `_business_save`.
+`_mark_posted`, `_leads`, `_lead_save`, `_taluna`, `_taluna_write`, `_login`, `_upload`, from v13.1 `_businesses`, `_business_save`, and from v13.2 `_godsview`.
+
+godsview reads the tanOS property tables (properties, rooms, leases, tenants, payments, notices, maintenance) and never writes to them.
 
 The business register is stored in `data/sigsche.json` under `settings.biz`, one record per business.
 

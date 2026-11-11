@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>sigsche v13.1 · sigsche.co.za</title>
+<title>sigsche v13.2 · sigsche.co.za</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&family=Manrope:wght@500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -205,7 +205,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
 <body>
 
 <header id="top">
-  <div class="logo"><b>_SIGSCHE</b><small id="ver-lbl">v13.1 · sigsche.co.za</small></div>
+  <div class="logo"><b>_SIGSCHE</b><small id="ver-lbl">v13.2 · sigsche.co.za</small></div>
   <div class="stats">
     <div class="stat"><b id="h-day">–</b><span>Sprint day</span></div>
     <div class="stat"><b id="h-posted">0/25</b><span>Posted</span></div>
@@ -219,6 +219,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
 
 <nav id="nav" aria-label="Sections">
   <a href="#today">Today</a>
+  <a href="#godsview">godsview</a>
   <a href="#compose">Compose</a>
   <a href="#posts">Queue</a>
   <a href="#platforms">Platforms · 33</a>
@@ -307,6 +308,15 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
 </section>
 
 <!-- TALUNA -->
+<!-- GODSVIEW -->
+<section class="tab" id="tab-godsview">
+  <h2>GODSVIEW · THE PROPERTY, LIVE</h2>
+  <p class="sub">One screen for the property, read straight from tanOS and refreshed every 15 seconds: every room, who has paid since the 28th, who is behind, notices sent and open maintenance. It only reads. Nothing here sends a notice or changes a record.</p>
+  <div class="kpis" id="gv-kpis"></div>
+  <div class="pgrid" id="gv-grid"></div>
+  <p class="note" id="gv-foot"></p>
+</section>
+
 <!-- BUSINESSES -->
 <section class="tab" id="tab-business">
   <h2>BUSINESSES · THE REGISTER</h2>
@@ -577,7 +587,7 @@ const PLANS=[
 const PLAN=Object.fromEntries(PLANS.map(p=>[p.key,p]));
 const exVat=n=>n/1.15;
 const TARGET=86417;
-const VER='v13.1',PRODUCT='sigsche',SITE='sigsche.co.za';
+const VER='v13.2',PRODUCT='sigsche',SITE='sigsche.co.za';
 // One naming rule for every download: sigsche-v12_<what>_<details>.<ext>
 function fname(parts,ext){return [PRODUCT+'-'+VER].concat(parts).filter(x=>x!=null&&x!=='').map(x=>String(x).replace(/[^\w.\-]+/g,'-').replace(/^-+|-+$/g,'')).join('_')+'.'+ext}
 const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']);
@@ -897,7 +907,7 @@ function render(){
  applyBiz();paintHeader();paintStore();
  if(editing()){pending=true;return}pending=false;
  const t=state.tab;
- if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();
+ if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();else if(t==='godsview')renderGodsview();
 }
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pending&&!editing())render()},0));
 function paintHeader(){
@@ -1457,8 +1467,29 @@ $('#biz-form').addEventListener('submit',e=>{
  putBiz(k,{custom:true,name:name,color:$('#b-color').value});$('#b-name').value='';state.bf='open';toast('Added _'+name+'. Fill in its record.');
 });
 
+/* ---------------- godsview (v13.2) ---------------- */
+let gv=null,gvErr='',gvBusy=false;
+const GV_STATE={paid:['Paid','#2ECC8A'],part:['Part paid','#FFC93C'],behind:['Behind','#FF6B6B'],new:['New lease','#7DA2FF'],nolease:['No lease on record','#A7ACBD']};
+async function pullGods(){if(!LOCAL||gvBusy)return;gvBusy=true;try{gv=await api('/api/godsview');gvErr=''}catch(e){gvErr=(e&&e.message)||'tanOS did not answer'}gvBusy=false;if(state.tab==='godsview')renderGodsview()}
+function gvPlural(n,w){return n+' '+w+(n===1?'':'s')}
+function renderGodsview(){
+ const K=$('#gv-kpis'),G=$('#gv-grid'),F=$('#gv-foot');
+ if(!LOCAL){K.innerHTML='';F.textContent='';G.innerHTML='<div class="card empty">godsview reads tanOS through the master MCP, so it runs on the localhost build only.</div>';return}
+ if(!gv){K.innerHTML='';F.textContent='';G.innerHTML='<div class="card empty">'+(gvErr?'tanOS could not be read: '+esc(gvErr)+'. It will try again in 15 seconds.':'Reading tanOS…')+'</div>';if(!gvErr)pullGods();return}
+ const t=gv.totals;
+ K.innerHTML=kpi(t.occupied+'/'+t.rooms,'Rooms with a lease',t.rooms?t.occupied/t.rooms:0,'#2ECC8A')+kpi(t.paid+'/'+t.occupied,'Paid in full since the 28th',t.occupied?t.paid/t.occupied:0,'#2ECC8A')+kpi(t.behind,'Behind',null,t.behind?'#FF6B6B':'#2ECC8A')+kpi(R(t.received),'Received of '+R(t.expected),t.expected?t.received/t.expected:0)+kpi(t.open_tickets,'Open maintenance',null,t.open_tickets?'#FFC93C':null)+kpi(gv.days_to_rent_day,'Days to the next 28th');
+ G.innerHTML=gv.rooms.map(r=>{const s=GV_STATE[r.state]||GV_STATE.nolease,c=s[1];
+  return '<div class="pcard'+(r.state==='paid'?' on':'')+'"><div class="ph"><span class="ptile" style="color:'+c+'">'+esc(String(r.room_name).slice(0,2))+'</span><div class="tx"><b>'+esc(r.room_name)+'</b><small>'+esc(r.tenant||'no tenant on record')+'</small></div><span class="chip" style="color:'+c+';border-color:'+c+';cursor:default">'+s[0].toUpperCase()+'</span></div>'
+   +(r.state==='nolease'?'<div class="pf"><span>'+R(r.due)+' a month</span><span>capture the lease in tanOS</span></div>':'<div class="pf"><span>'+R(r.paid)+' of '+R(r.due)+'</span><span>'+(r.last_payment?'last paid '+esc(r.last_payment):'no payment on record')+'</span></div>')
+   +'<div class="pf"><span>'+gvPlural(r.notices,'notice')+' sent</span><span>'+gvPlural(r.open_tickets,'open ticket')+'</span></div></div>'}).join('')
+  ||'<div class="card empty">tanOS has no rooms for this property yet. godsview fills in the moment the rooms, leases and payments are captured there.</div>';
+ F.textContent=(gv.property?gv.property+' · ':'')+'read '+new Date(gv.at).toLocaleTimeString()+' · counting payments from '+gv.cycle_start+(gvErr?' · last refresh failed: '+gvErr:'');
+}
+setInterval(()=>{if(state.tab==='godsview')pullGods()},15000);
+window.addEventListener('hashchange',()=>{if(location.hash==='#godsview')pullGods()});
+
 /* ---------------- routing & boot ---------------- */
-const TABS=['today','compose','platforms','business','taluna','posts','cards','outreach','partner','pricing','anime','export'];
+const TABS=['today','godsview','compose','platforms','business','taluna','posts','cards','outreach','partner','pricing','anime','export'];
 function route(){const h=(location.hash||'').replace('#','');state.tab=TABS.includes(h)?h:'today';$$('.tab').forEach(s=>s.classList.toggle('on',s.id==='tab-'+state.tab));$$('#nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+state.tab?'page':'false'));render()}
 window.addEventListener('hashchange',route);
 window.addEventListener('resize',paintHeader);
