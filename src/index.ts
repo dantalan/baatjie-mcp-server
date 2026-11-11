@@ -2,12 +2,15 @@
 /**
  * MCP server for the Baatjie Group.
  *
- * Exposes two Supabase-backed systems through one interface:
- *   tanOS       — property OS, sales pipeline, dependency-aware action plan
- *   sigscheCore — multi-brand signal scheduler
+ * One master server for three systems:
+ *   tanOS       — property OS, sales pipeline, dependency-aware action plan (Supabase)
+ *   sigscheCore — multi-brand signal queue (Supabase)
+ *   sigsche     — the sigsche.co.za dashboard: brands, 33 platforms, signals,
+ *                 leads, Taluna, sign-in and upload (local, on this computer)
  *
- * Transport defaults to stdio for local clients. Set TRANSPORT=http to run as a
- * streamable-HTTP service instead.
+ * Whichever way it starts, it also serves the sigsche dashboard and the MCP
+ * endpoint on http://localhost:8641 (PORT). stdio is the default transport for
+ * Claude Desktop; TRANSPORT=http runs the HTTP service alone.
  */
 
 // Loads .env into process.env. Variables already present in the environment take
@@ -24,6 +27,10 @@ import { registerGenericTools } from "./tools/generic.js";
 import { registerSequencingTools } from "./tools/sequencing.js";
 import { registerOperationsTools } from "./tools/operations.js";
 import { registerSigscheTools } from "./tools/sigsche.js";
+import { registerSigscheLocalTools } from "./tools/sigsche-local.js";
+import { localOnly, mountSigsche } from "./sigsche/http.js";
+
+const VERSION = "2.0.0";
 
 const REQUIRED_ENV = [
   "TANOS_URL",
@@ -35,13 +42,14 @@ const REQUIRED_ENV = [
 function buildServer(): McpServer {
   const server = new McpServer({
     name: "baatjie-mcp-server",
-    version: "1.0.0",
+    version: VERSION,
   });
 
   registerGenericTools(server);
   registerSequencingTools(server);
   registerOperationsTools(server);
   registerSigscheTools(server);
+  registerSigscheLocalTools(server);
 
   return server;
 }
@@ -58,22 +66,17 @@ function checkEnv(): void {
   }
 }
 
-async function runStdio(): Promise<void> {
-  checkEnv();
-  const server = buildServer();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("baatjie-mcp-server running on stdio");
-}
-
-async function runHttp(): Promise<void> {
-  checkEnv();
+/** The dashboard, its local API and the MCP endpoint on one localhost port. */
+function startHttp(): Promise<boolean> {
   const app = express();
-  app.use(express.json({ limit: "4mb" }));
+  app.use(localOnly);
+  app.use(express.json({ limit: "24mb" }));
 
   app.get("/health", (_req, res) => {
-    res.json({ ok: true, server: "baatjie-mcp-server", version: "1.0.0" });
+    res.json({ ok: true, server: "baatjie-mcp-server", version: VERSION });
   });
+
+  mountSigsche(app);
 
   app.post("/mcp", async (req, res) => {
     // A fresh stateless transport per request keeps request ids from colliding
@@ -90,29 +93,58 @@ async function runHttp(): Promise<void> {
     await transport.handleRequest(req, res, req.body);
   });
 
-  const port = Number.parseInt(process.env["PORT"] ?? "3000", 10);
+  const port = Number.parseInt(process.env["PORT"] ?? "8641", 10);
   const host = process.env["HOST"] ?? "127.0.0.1";
-  app.listen(port, host, () => {
-    console.error(`baatjie-mcp-server running on http://${host}:${port}/mcp`);
+  return new Promise<boolean>((resolve) => {
+    const listener = app.listen(port, host, () => {
+      console.error(`sigsche dashboard on http://localhost:${port}/  ·  MCP on http://localhost:${port}/mcp`);
+      resolve(true);
+    });
+    listener.on("error", (err: NodeJS.ErrnoException) => {
+      // Another copy of this server already holds the port (Claude Desktop's
+      // stdio copy and a standalone copy can both be running): that one serves.
+      console.error(
+        err.code === "EADDRINUSE"
+          ? `Port ${port} is already served by another baatjie-mcp-server; not starting a second dashboard.`
+          : `HTTP did not start: ${err.message}`,
+      );
+      resolve(false);
+    });
   });
+}
+
+async function runStdio(): Promise<void> {
+  checkEnv();
+  const server = buildServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("baatjie-mcp-server running on stdio");
+  if (process.env["SIGSCHE_HTTP"] !== "off") await startHttp();
+}
+
+async function runHttp(): Promise<void> {
+  checkEnv();
+  const ok = await startHttp();
+  if (!ok) process.exit(1);
 }
 
 async function main(): Promise<void> {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     console.error(
       [
-        "baatjie-mcp-server — MCP interface to tanOS and sigscheCore",
+        "baatjie-mcp-server — tanOS, sigscheCore and the sigsche dashboard",
         "",
         "Usage:",
         "  baatjie-mcp-server              Run on stdio (default)",
-        "  TRANSPORT=http baatjie-mcp-server   Run as streamable HTTP on PORT (default 3000)",
+        "  TRANSPORT=http baatjie-mcp-server   Run the dashboard + streamable HTTP only",
         "",
         "Required environment:",
         ...REQUIRED_ENV.map((k) => `  ${k}`),
         "",
         "Optional:",
         "  TRANSPORT   'stdio' (default) or 'http'",
-        "  PORT        HTTP port (default 3000)",
+        "  PORT        HTTP port (default 8641)",
+        "  SIGSCHE_HTTP=off   Do not serve the dashboard from the stdio process",
         "  HOST        HTTP bind address (default 127.0.0.1)",
       ].join("\n"),
     );

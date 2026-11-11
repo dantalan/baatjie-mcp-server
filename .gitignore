@@ -23,6 +23,6 @@ npm-debug.log*
 Thumbs.db
 desktop.ini
 .DS_Store
-init.json
-_gitprep.ps1
-_gitaudit.ps1
+
+# sigsche local data: signals, leads, saved cards, platform tokens, browser profile
+data/
