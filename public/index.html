@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>sigsche v13 · sigsche.co.za</title>
+<title>sigsche v13.1 · sigsche.co.za</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&family=Manrope:wght@500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -205,7 +205,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
 <body>
 
 <header id="top">
-  <div class="logo"><b>_SIGSCHE</b><small id="ver-lbl">v13 · sigsche.co.za</small></div>
+  <div class="logo"><b>_SIGSCHE</b><small id="ver-lbl">v13.1 · sigsche.co.za</small></div>
   <div class="stats">
     <div class="stat"><b id="h-day">–</b><span>Sprint day</span></div>
     <div class="stat"><b id="h-posted">0/25</b><span>Posted</span></div>
@@ -222,6 +222,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
   <a href="#compose">Compose</a>
   <a href="#posts">Queue</a>
   <a href="#platforms">Platforms · 33</a>
+  <a href="#business">Businesses</a>
   <a href="#taluna">Taluna</a>
   <a href="#cards">Cards</a>
   <a href="#outreach">Outreach</a>
@@ -306,6 +307,23 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
 </section>
 
 <!-- TALUNA -->
+<!-- BUSINESSES -->
+<section class="tab" id="tab-business">
+  <h2>BUSINESSES · THE REGISTER</h2>
+  <p class="sub">Every business sigsche posts for, each with its own record. A field left empty stays marked open, so nothing is guessed. For group businesses, the domain saved here is the link their posts and cards carry.</p>
+  <div class="kpis" id="biz-kpis"></div>
+  <div class="chips" id="biz-filter"></div>
+  <div class="pgrid" id="biz-grid"></div>
+  <div class="card" style="margin-top:14px"><h3>Add a business</h3>
+    <form id="biz-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+      <input class="ctrl" id="b-name" maxlength="40" aria-label="Business name" placeholder="Business name" style="flex:1;min-width:180px">
+      <input type="color" id="b-color" value="#7DA2FF" aria-label="Brand colour" style="width:44px;height:38px;padding:0;border:0;background:none">
+      <button class="btn green" type="submit">Add</button>
+    </form>
+    <p class="note">It joins the Group set and becomes a brand you can compose for. Its mark and colours are set properly in the brand kit step.</p>
+  </div>
+</section>
+
 <section class="tab" id="tab-taluna">
   <h2>TALUNA CALENDAR · MAKTOOF</h2>
   <p class="sub">A Year of Miracles with dantalan. Time anchored in Creation, Moon and Stars, grounded on Earth: 13 moons of 28 days from 1 March, and one day to spend with God. 13 × 28 = 364, and 3 + 6 + 4 = 13.</p>
@@ -559,11 +577,11 @@ const PLANS=[
 const PLAN=Object.fromEntries(PLANS.map(p=>[p.key,p]));
 const exVat=n=>n/1.15;
 const TARGET=86417;
-const VER='v13',PRODUCT='sigsche',SITE='sigsche.co.za';
+const VER='v13.1',PRODUCT='sigsche',SITE='sigsche.co.za';
 // One naming rule for every download: sigsche-v12_<what>_<details>.<ext>
 function fname(parts,ext){return [PRODUCT+'-'+VER].concat(parts).filter(x=>x!=null&&x!=='').map(x=>String(x).replace(/[^\w.\-]+/g,'-').replace(/^-+|-+$/g,'')).join('_')+'.'+ext}
-const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor']);
-const SITEOF={sigsche:'sigsche.co.za'};
+const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']);
+const SITEOF={sigsche:'sigsche.co.za',zaaka:'zaaka.io'};
 const ACT_EXTRA={};
 const STAGES=['New','Messaged','Replied','Demo booked','Pilot','Signed','Lost'];
 const CITIES=['East London','Durban','Pretoria','Cape Town','Other'];
@@ -594,13 +612,15 @@ const BR={
  remotemom:{name:'_remotemom',ref:'_remotemom',color:'#F0607A',parts:[{t:'_remote',c:'acc'},{t:'mom',c:'fg'}]},
  xnith:{name:'_xnith',ref:'_xnith',color:'#A7ACBD',parts:[{t:'_x',c:'acc'},{t:'nith',c:'fg'}]},
  anchor:{name:'_anchor alliance',ref:'_anchoralliance',color:'#5EEAD4',parts:[{t:'_anchor',c:'acc'},{t:' alliance',c:'fg'}]},
+ zaaka:{name:'_zaaka.io',ref:'_zaaka',color:'#9FE870',parts:[{t:'_zaaka',c:'acc'},{t:'.io',c:'fg'}]},
+ budhapets:{name:'_budha pets',ref:'_budhapets',color:'#F4A261',parts:[{t:'_budha',c:'acc'},{t:' pets',c:'fg'}]},
  onestandie:{name:"_one'standie",ref:'_onestandie',color:'#C0A060',parts:[{t:"_one'",c:'acc'},{t:'standie',c:'fg'}]},
  backopposite:{name:'_backopposite',ref:'_backopposite',color:'#8B8DF5',parts:[{t:'_back',c:'acc'},{t:'opposite',c:'fg'}]}
 };
 const KIND_LABEL={product:'Product',proof:'Proof',tenant:'Tenant app',anime:'Anime',white:'White-label',partner:'Partner',media:'Behind the build',custom:'Signal'};
 const BORDER=['locare','tanos','baatjie','node1','talandan','dantalan','taluna','unuta','sigsche','mastandie','onestandie','backopposite','mkaya','stoeplife','erfwerk','yardstate'];
-const BGROUPS=[['Ecosystem',BORDER.slice(0,9)],['White-labels',BORDER.slice(9)],['Group',['covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor']]];
-const ROLE={locare:'property OS · master',tanos:'tenant app',baatjie:'the landlord',node1:'proof node',talandan:'land',dantalan:'signal',taluna:'true time',unuta:'broadcast',sigsche:'rectro tec lab · dePin central',mastandie:'township',onestandie:'premium',backopposite:'backyard',mkaya:'diaspora',stoeplife:'young pro',erfwerk:'working landlords',yardstate:'urban',covestos:'the bank',associates:'engineering think tank',supanova:'card studio · ONE.',daqua:'training institute',mixmatch:'fruit & veg · everything R13',remotemom:'remotemom',xnith:'xnith',anchor:'property management · since 2009'};
+const BGROUPS=[['Ecosystem',BORDER.slice(0,9)],['White-labels',BORDER.slice(9)],['Group',['covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']]];
+const ROLE={locare:'property OS · master',tanos:'tenant app',baatjie:'the landlord',node1:'proof node',talandan:'land',dantalan:'signal',taluna:'true time',unuta:'broadcast',sigsche:'rectro tec lab · dePin central',mastandie:'township',onestandie:'premium',backopposite:'backyard',mkaya:'diaspora',stoeplife:'young pro',erfwerk:'working landlords',yardstate:'urban',covestos:'the bank',associates:'engineering think tank',supanova:'card studio · ONE.',daqua:'training institute',mixmatch:'fruit & veg · everything R13',remotemom:'remotemom',xnith:'xnith',anchor:'property management · since 2009',zaaka:'zaaka.io',budhapets:'budha pets'};
 // 33 platforms. mode: intent = opens with the caption in the post box · open = copy, then open · app = phone-only, copy.
 const PLATFORMS=[
  ['instagram','Instagram','IG','#E1306C','social','open','https://www.instagram.com/'],
@@ -694,7 +714,7 @@ const EPISODES=[
 const MOONS=[['MUTHE','Creation','_locare','E1'],['ABRHAM','Foundation','Node 1','E5'],['YOHANNIS','Signal','_dantalan','E3'],['MISKARAM','Covenant','_baatjie','E4'],['TEQEMT','Land','_talandan','E9'],['HIDAR','Tenant','_tanos','E6'],['TAHSAS','Time','_taluna','13 moons'],['TIR','Broadcast','_unuta media','E10'],['YAKATIT','Lab','_sigsche','Lab builds ledger'],['MAGABIT','Township',"_ma'standie",'E7'],['MIYAZYA','Premium',"_one'standie",'Premium boutique'],['GINBOT','Diaspora',"_m'kaya",'Diaspora via _locare'],['SANE','Urban','_yardstate','Township to suburb']];
 
 /* ---------------- state ---------------- */
-const DEFAULT_SETTINGS={start:'2026-11-10',sender:'John Baatjie',perDay:10,demos:6,pilots:2,proofLabel:'Node 1 · 11 units',plat:{},tlNames:'orig'};
+const DEFAULT_SETTINGS={start:'2026-11-10',sender:'John Baatjie',perDay:10,demos:6,pilots:2,proofLabel:'Node 1 · 11 units',plat:{},biz:{},tlNames:'orig'};
 const state={settings:Object.assign({},DEFAULT_SETTINGS),leads:{},edits:{},entries:{},signals:{},cmp:{brand:'locare',plats:null,media:'text',busy:false},pf:'all',tl:{iso:todayISO(),fmt:'square',ground:'plaster',busy:false,edit:false},storage:'memory',tab:'today',day:null,cardPost:BASE_POSTS[0].id,fmt:'square',ground:'dark',basis:'incl',fCity:'All',fStage:'Active',readOnly:false};
 const LS='sigscheONE_v9';
 let localHad=null;
@@ -872,12 +892,12 @@ function cardName(p,fmt){return fname(['card',p.b==='node1'?'nodeone':BR[p.b].re
 /* ---------------- render ---------------- */
 let renderT=0;function renderSoon(){cancelAnimationFrame(renderT);renderT=requestAnimationFrame(render)}
 let pending=false;
-function editing(){const a=document.activeElement;return a&&a.matches&&a.matches('input,textarea,select')&&a.closest('#post-list,#lead-body,#tl-entry,#plat-grid')}
+function editing(){const a=document.activeElement;return a&&a.matches&&a.matches('input,textarea,select')&&a.closest('#post-list,#lead-body,#tl-entry,#plat-grid,#biz-grid')}
 function render(){
- paintHeader();paintStore();
+ applyBiz();paintHeader();paintStore();
  if(editing()){pending=true;return}pending=false;
  const t=state.tab;
- if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();
+ if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();
 }
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pending&&!editing())render()},0));
 function paintHeader(){
@@ -1370,6 +1390,7 @@ document.addEventListener('change',e=>{
  if(el.id==='f-city'){state.fCity=el.value;renderOutreach();return}
  if(el.id==='f-stage'){state.fStage=el.value;renderOutreach();return}
  if(el.id==='l-city')$('#lead-form').dataset.touched='1';
+ if(el.dataset&&el.dataset.bz){const bc=el.closest('[data-biz]');if(bc){const bv=el.value.trim();putBiz(bc.dataset.biz,{[el.dataset.bz]:el.dataset.bz==='domain'?cleanDomain(bv)||bv:bv})}return}
  if(el.dataset&&el.dataset.ph){setPlat(el.dataset.ph,{h:el.value.trim()});return}
  const k=el.dataset&&el.dataset.chg;if(!k)return;const id=el.closest('[data-id]').dataset.id,l=state.leads[id];if(!l)return;
  if(k==='stage')putLead(setStage(l,el.value));else{const n=Object.assign({},l,{updated:Date.now()});n[k]=el.value.trim();putLead(n)}
@@ -1388,8 +1409,56 @@ $('#settings-form').addEventListener('submit',e=>{
  state.day=null;putSettings();toast('Settings saved');
 });
 
+/* ---------------- business register (v13.1) ---------------- */
+const BIZ_F=[['domain','Domain'],['sector','What it does'],['entity','Owner entity'],['contact','Public contact'],['about','Description']];
+const BIZ_ALL=['domain','sector','entity','status','contact','about'];
+const BIZ_STATUS=['Idea','Building','Live','Parked'];
+const SITE0=Object.assign({},SITEOF);
+const BIZ_BUILTIN=new Set(Object.keys(BR));
+function bizRec(k){return Object.assign({domain:SITE0[k]||'',sector:'',entity:'',status:'',contact:'',about:''},(state.settings.biz||{})[k])}
+function bizOpen(k){const r=bizRec(k);return BIZ_ALL.filter(f=>!String(r[f]||'').trim())}
+function bizKeys(){return BGROUPS.reduce((a,g)=>a.concat(g[1]),[])}
+function bizSet(k){const g=BGROUPS.find(x=>x[1].includes(k));return g?g[0]:'Group'}
+function cleanDomain(v){v=String(v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');return /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v)?v:''}
+// Bring saved records into the live catalog: custom businesses become brands, saved domains become links.
+function applyBiz(){
+ const B=state.settings.biz||{};
+ Object.keys(B).forEach(k=>{const b=B[k];if(!b)return;
+  if(b.custom&&!BIZ_BUILTIN.has(k)&&/^[a-z0-9]{2,24}$/.test(k)&&/^[\w .'&|-]{2,40}$/.test(b.name||'')){
+   const c=/^#[0-9a-f]{6}$/i.test(b.color||'')?b.color:'#7DA2FF';
+   BR[k]={name:'_'+b.name,ref:'_'+k,color:c,parts:[{t:'_'+b.name,c:'acc'}]};GROUP.add(k);ROLE[k]=b.sector||b.name;
+   if(!BGROUPS[2][1].includes(k))BGROUPS[2][1].push(k)}
+  if(!BR[k])return;
+  const d=cleanDomain(b.domain);if(d)SITEOF[k]=d;else if(SITE0[k])SITEOF[k]=SITE0[k];else delete SITEOF[k]});
+}
+function putBiz(k,patch){const S=state.settings;S.biz=Object.assign({},S.biz,{[k]:Object.assign({},(S.biz||{})[k],patch)});applyBiz();putSettings()}
+function renderBusiness(){
+ state.bf=state.bf||'all';
+ const keys=bizKeys(),open=keys.filter(k=>bizOpen(k).length),fields=keys.reduce((n,k)=>n+bizOpen(k).length,0),mine=keys.filter(k=>!BIZ_BUILTIN.has(k)).length;
+ $('#biz-kpis').innerHTML=kpi(keys.length,'Businesses registered')+kpi((keys.length-open.length)+'/'+keys.length,'Records complete',(keys.length-open.length)/keys.length,'#2ECC8A')+kpi(fields,'Fields still open',null,fields?'#FFC93C':'#2ECC8A')+kpi(mine,'Added by you');
+ const filters=[['all','ALL',keys.length],['open','OPEN',open.length],['complete','COMPLETE',keys.length-open.length]].concat(BGROUPS.map(g=>[g[0],g[0].toUpperCase(),g[1].length]));
+ $('#biz-filter').innerHTML=filters.map(f=>'<button class="chip" data-act="bizFilter" data-v="'+esc(f[0])+'" aria-pressed="'+(state.bf===f[0])+'">'+esc(f[1])+' · '+f[2]+'</button>').join('');
+ const list=keys.filter(k=>state.bf==='all'||(state.bf==='open'?bizOpen(k).length>0:state.bf==='complete'?!bizOpen(k).length:bizSet(k)===state.bf));
+ $('#biz-grid').innerHTML=list.map(k=>{const r=bizRec(k),o=bizOpen(k),nm=BR[k].name,ab=nm.replace(/^_/,'').replace(/[^a-z0-9]/gi,'').slice(0,2).toUpperCase();
+  return '<div class="pcard'+(o.length?'':' on')+'" data-biz="'+k+'"><div class="ph"><span class="ptile" style="color:'+BR[k].color+'">'+esc(ab)+'</span><div class="tx"><b>'+esc(nm)+'</b><small>'+esc(bizSet(k))+' · '+(o.length?o.length+' open':'complete')+'</small></div>'+(BIZ_BUILTIN.has(k)?'':'<button class="btn" data-act="bizDel" data-k="'+k+'">Remove</button>')+'</div>'
+   +BIZ_F.map(f=>'<input class="ctrl" data-bz="'+f[0]+'" maxlength="'+(f[0]==='about'?200:80)+'" aria-label="'+esc(nm)+' '+f[1]+'" placeholder="'+f[1]+' · open" value="'+esc(r[f[0]]||'')+'">').join('')
+   +'<select class="ctrl" data-bz="status" aria-label="'+esc(nm)+' status"><option value="">Status · open</option>'+BIZ_STATUS.map(s=>'<option'+(r.status===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'}).join('')||'<div class="card empty">Nothing here.</div>';
+}
+Object.assign(ACT,{
+ bizFilter(el){state.bf=el.dataset.v;renderBusiness()},
+ bizDel(el){const k=el.dataset.k,used=Object.values(state.signals).filter(s=>s&&s.brand===k).length;
+  if(used){toast('Used by '+used+' signal'+(used>1?'s':'')+'. Delete those first.',4000);return}
+  twoTap(el,'bd'+k,'Tap again',()=>{const S=state.settings,B=Object.assign({},S.biz);delete B[k];S.biz=B;delete BR[k];delete ROLE[k];delete SITEOF[k];GROUP.delete(k);BGROUPS[2][1]=BGROUPS[2][1].filter(x=>x!==k);if(state.cmp&&state.cmp.brand===k)state.cmp.brand='locare';putSettings();toast('Business removed')})}
+});
+$('#biz-form').addEventListener('submit',e=>{
+ e.preventDefault();const name=$('#b-name').value.trim().replace(/^_+/,''),k=name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,24);
+ if(!/^[\w .'&|-]{2,40}$/.test(name)||k.length<2){toast("Name: 2 to 40 letters, digits, spaces or . ' & | -",4000);return}
+ if(BR[k]){toast(BR[k].name+' is already registered');return}
+ putBiz(k,{custom:true,name:name,color:$('#b-color').value});$('#b-name').value='';state.bf='open';toast('Added _'+name+'. Fill in its record.');
+});
+
 /* ---------------- routing & boot ---------------- */
-const TABS=['today','compose','platforms','taluna','posts','cards','outreach','partner','pricing','anime','export'];
+const TABS=['today','compose','platforms','business','taluna','posts','cards','outreach','partner','pricing','anime','export'];
 function route(){const h=(location.hash||'').replace('#','');state.tab=TABS.includes(h)?h:'today';$$('.tab').forEach(s=>s.classList.toggle('on',s.id==='tab-'+state.tab));$$('#nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+state.tab?'page':'false'));render()}
 window.addEventListener('hashchange',route);
 window.addEventListener('resize',paintHeader);

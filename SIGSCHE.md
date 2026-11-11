@@ -32,10 +32,12 @@ Everything sigsche holds lives in `data/` next to the server (git-ignored):
   posts the caption and card directly and ticks the platform.
 - Phone-only apps (Clubhouse, BeReal): the caption is copied.
 
-## MCP tools added (13)
+## MCP tools added (15)
 
 `baatjie_sigsche_overview`, `_brands`, `_platforms`, `_platform_set`, `_signals`, `_compose`,
-`_mark_posted`, `_leads`, `_lead_save`, `_taluna`, `_taluna_write`, `_login`, `_upload`.
+`_mark_posted`, `_leads`, `_lead_save`, `_taluna`, `_taluna_write`, `_login`, `_upload`, and from v13.1 `_businesses`, `_business_save`.
+
+The business register is stored in `data/sigsche.json` under `settings.biz`, one record per business.
 
 `public/catalog.json` is the shared list of brands, platforms, sprint posts and moons. It is
 generated from the dashboard page; regenerate it when the page's catalog changes.

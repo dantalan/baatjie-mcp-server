@@ -1,7 +1,7 @@
 {
  "product": "sigsche",
  "site": "sigsche.co.za",
- "version": "v13",
+ "version": "v13.1",
  "brands": [
   {
    "key": "locare",
@@ -239,6 +239,26 @@
    "ref": "_anchoralliance",
    "color": "#5EEAD4",
    "role": "property management · since 2009",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "zaaka",
+   "name": "_zaaka.io",
+   "ref": "_zaaka",
+   "color": "#9FE870",
+   "role": "zaaka.io",
+   "group": true,
+   "site": "zaaka.io",
+   "set": "Group"
+  },
+  {
+   "key": "budhapets",
+   "name": "_budha pets",
+   "ref": "_budhapets",
+   "color": "#F4A261",
+   "role": "budha pets",
    "group": true,
    "site": "",
    "set": "Group"

@@ -1,6 +1,6 @@
 /**
  * sigsche tools: everything the sigsche.co.za dashboard holds on this
- * computer. 24 brands, 33 platforms, the sprint and composed signals with
+ * computer. The business register and its brands, 33 platforms, the sprint and composed signals with
  * per-platform posted ticks, the agency pipeline, the Taluna calendar, and
  * sign-in and upload through the sigsche browser.
  *
@@ -12,8 +12,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { openLogin } from "../sigsche/browser.js";
 import {
+  BIZ_STATUS,
   activeIds,
+  allBrands,
   brandOf,
+  businesses,
   catalog,
   findItem,
   handleOf,
@@ -22,6 +25,7 @@ import {
   mutate,
   platformOf,
   readState,
+  saveBusiness,
   sprintStart,
   talunaDay,
   todayISO,
@@ -120,7 +124,7 @@ Returns:
     "baatjie_sigsche_brands",
     {
       title: "List sigsche Brands",
-      description: `The 24 brands sigsche can post as: the 9 ecosystem brands, the 7 white-labels and the 8 group brands. Use the 'key' as brand in baatjie_sigsche_compose.
+      description: `The brands sigsche can post as: the ecosystem brands, the white-labels and the group businesses, including any added in the register. Use the 'key' as brand in baatjie_sigsche_compose.
 
 Returns: { "brands": [{ "key","name","role","set","site","signals" }] }`,
       inputSchema: { response_format: responseFormatField },
@@ -128,8 +132,9 @@ Returns: { "brands": [{ "key","name","role","set","site","signals" }] }`,
     },
     async (params) => {
       try {
-        const all = items(readState());
-        const brands = catalog().brands.map((b) => ({
+        const s = readState();
+        const all = items(s);
+        const brands = allBrands(s).map((b) => ({
           key: b.key,
           name: b.name,
           role: b.role,
@@ -139,6 +144,86 @@ Returns: { "brands": [{ "key","name","role","set","site","signals" }] }`,
         }));
         const md = table(["key", "name", "role", "set", "posts"], brands.map((b) => [b.key, b.name, b.role, b.set, b.signals]));
         return respond(params.response_format, `# sigsche brands (${brands.length})\n\n${md}`, { brands });
+      } catch (error) {
+        return toErrorResponse(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "baatjie_sigsche_businesses",
+    {
+      title: "sigsche Business Register",
+      description: `The business register: every business sigsche posts for, with its record (domain, what it does, owner entity, status, public contact, description) and the fields still open.
+
+A field that is empty is listed under 'open'. Never fill an open field with a guess; ask Baatjie.
+
+Args:
+  - only ('all' | 'open' | 'complete'): Filter (default 'all')
+
+Returns: { "total", "complete", "businesses": [{ "key","name","set","custom","domain","sector","entity","status","contact","about","open": [] }] }`,
+      inputSchema: { only: z.enum(["all", "open", "complete"]).default("all"), response_format: responseFormatField },
+      annotations: READ,
+    },
+    async (params) => {
+      try {
+        const all = businesses(readState());
+        const rows = all.filter((b) => (params.only === "open" ? b.open.length > 0 : params.only === "complete" ? b.open.length === 0 : true));
+        const complete = all.filter((b) => b.open.length === 0).length;
+        const md = table(
+          ["key", "name", "set", "status", "domain", "open"],
+          rows.map((b) => [b.key, b.name, b.set, b.status || "–", b.domain || "–", b.open.length ? b.open.join(", ") : "complete"]),
+        );
+        return respond(params.response_format, `# sigsche businesses (${all.length}) · ${complete} complete\n\n${md}`, {
+          total: all.length,
+          complete,
+          businesses: rows,
+        });
+      } catch (error) {
+        return toErrorResponse(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "baatjie_sigsche_business_save",
+    {
+      title: "Save a Business Record",
+      description: `Fill in or change a business record in the register, or add a new business. Only the fields passed are changed. Pass an empty string to mark a field open again.
+
+To add a business, pass a new key together with name (and optionally color). It joins the Group set and can be composed for straight away.
+
+Args:
+  - key (string): Business key from baatjie_sigsche_businesses; a new key (2 to 24 lowercase letters or digits) adds a business
+  - name (string, optional): Display name, required only when adding
+  - color (string, optional): Brand colour as #RRGGBB, only when adding
+  - domain, sector, entity, contact, about (string, optional): Record fields
+  - status ('Idea' | 'Building' | 'Live' | 'Parked' | '', optional)
+
+Returns: { "ok": true, "business": { ...record, "open": [] } }`,
+      inputSchema: {
+        key: z.string().regex(/^[a-z0-9]{2,24}$/, "2 to 24 lowercase letters or digits"),
+        name: z.string().max(40).optional(),
+        color: z.string().optional(),
+        domain: z.string().max(120).optional(),
+        sector: z.string().max(80).optional(),
+        entity: z.string().max(80).optional(),
+        status: z.enum(["", ...BIZ_STATUS]).optional(),
+        contact: z.string().max(80).optional(),
+        about: z.string().max(200).optional(),
+        response_format: responseFormatField,
+      },
+      annotations: WRITE,
+    },
+    async (params) => {
+      try {
+        const business = saveBusiness(
+          params.key,
+          { domain: params.domain, sector: params.sector, entity: params.entity, status: params.status, contact: params.contact, about: params.about },
+          params.name ? { name: params.name.trim().replace(/^_+/, ""), color: params.color } : undefined,
+        );
+        const left = business.open.length ? `Still open: ${business.open.join(", ")}.` : "Record complete.";
+        return respond(params.response_format, `Saved **${business.name}**. ${left}`, { ok: true, business });
       } catch (error) {
         return toErrorResponse(error);
       }
