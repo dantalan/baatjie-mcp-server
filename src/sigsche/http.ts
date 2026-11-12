@@ -57,6 +57,16 @@ function fail(res: Response, error: unknown, status = 400): void {
 const ID = /^[\w.\-:]{1,80}$/;
 
 export function mountSigsche(app: Express): void {
+  // Anti-CSRF: a cross-site HTML form can only send form or text content types, and a
+  // cross-site JSON request needs a CORS preflight this server never allows. So every API
+  // write must be JSON. A body-less DELETE is also preflighted, so it is allowed as-is.
+  app.use("/api", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD") return next();
+    const type = req.headers["content-type"];
+    if (req.method === "DELETE" && !type) return next();
+    if (type && /^application\/json\b/i.test(type)) return next();
+    res.status(415).json({ error: "API writes must be sent as application/json." });
+  });
   app.get("/", (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "index.html"));
   });
