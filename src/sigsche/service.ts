@@ -5,8 +5,8 @@
  */
 
 import { existsSync } from "node:fs";
-import { handleCounts } from "./accounts.js";
-import { assistPost, copyToClipboard, loginStatuses, type LoginState } from "./browser.js";
+import { accounts, chooseAccount, handleCounts } from "./accounts.js";
+import { MAIN, assistPost, copyToClipboard, loginStatuses, type LoginState } from "./browser.js";
 import { DIRECT_FIELDS, directConfigured, directPost } from "./direct.js";
 import {
   cardPath,
@@ -104,6 +104,7 @@ export function composeUrl(pl: Platform, caption: string, link: string, hook: st
 
 export interface UploadRequest {
   pid: string;
+  accountId?: string;
   itemId?: string;
   caption?: string;
   url?: string;
@@ -117,6 +118,8 @@ export interface UploadResult {
   caption_filled: boolean;
   where?: string;
   next: string;
+  from?: string | null;
+  session?: string;
 }
 
 export async function upload(req: UploadRequest): Promise<UploadResult> {
@@ -124,6 +127,12 @@ export async function upload(req: UploadRequest): Promise<UploadResult> {
   if (!pl) throw new Error(`Unknown platform '${req.pid}'. Call baatjie_sigsche_platforms for the 33 ids.`);
   const item = req.itemId ? findItem(readState(), req.itemId) : undefined;
   if (req.itemId && !item) throw new Error(`No post or signal with id '${req.itemId}'`);
+  // v13.4: post from the handle the brand uses (or the one named), in that handle's own browser session.
+  const account = chooseAccount(readState(), req.pid, {
+    ...(req.accountId ? { accountId: req.accountId } : {}),
+    ...(item ? { brand: item.brand.key } : {}),
+  });
+  const session = account?.session ?? MAIN;
   const caption = req.caption ?? item?.caption;
   if (!caption) throw new Error("Nothing to post: give an item id or a caption.");
   const cardName = req.cardName ?? item?.card_file;
@@ -159,7 +168,7 @@ export async function upload(req: UploadRequest): Promise<UploadResult> {
   } else {
     copyToClipboard(caption);
     const url = req.url ?? composeUrl(pl, caption, item?.link ?? "", item?.hook ?? "");
-    const r = await assistPost(url, caption, file, pl.mode === "open");
+    const r = await assistPost(url, caption, file, pl.mode === "open", session);
     const prefilled = pl.mode === "intent" && url !== pl.url;
     const todo: string[] = [];
     if (!r.caption_filled && !prefilled) todo.push("paste the caption (it is on the clipboard)");
@@ -179,5 +188,17 @@ export async function upload(req: UploadRequest): Promise<UploadResult> {
     s.uploads.push({ at: Date.now(), pid: pl.id, item: item?.id ?? null, method: result.method, posted: result.posted });
     if (s.uploads.length > 500) s.uploads.splice(0, s.uploads.length - 500);
   });
-  return result;
+  return { ...result, from: account ? account.handle : null, session };
+}
+
+/** Sign-in state for every saved handle, read in the browser session that handle uses. */
+export async function accountLogins(): Promise<Record<string, LoginState>> {
+  const list = accounts(readState());
+  const byS: Record<string, Record<string, LoginState>> = {};
+  for (const sess of new Set(list.map((a) => a.session))) {
+    const pids = [...new Set(list.filter((a) => a.session === sess).map((a) => a.pid))];
+    const { status } = await loginStatuses(pids, sess);
+    byS[sess] = Object.fromEntries(pids.map((p) => [p, status[p]?.state ?? "unknown"]));
+  }
+  return Object.fromEntries(list.map((a) => [a.id, byS[a.session]?.[a.pid] ?? "unknown"]));
 }

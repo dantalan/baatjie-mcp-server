@@ -10,13 +10,53 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DATA_DIR, mutate, readState } from "./model.js";
 
-const PORT = Number.parseInt(process.env["SIGSCHE_CHROME_PORT"] ?? "9333", 10);
-const BASE = `http://127.0.0.1:${PORT}`;
-const PROFILE_DIR = path.join(DATA_DIR, "chrome-profile");
+/**
+ * v13.4: one browser window per session. The session "main" keeps the original
+ * profile and port; every other session gets its own profile folder and its own
+ * debugging port, so two handles on one platform can each stay signed in.
+ */
+const BASE_PORT = Number.parseInt(process.env["SIGSCHE_CHROME_PORT"] ?? "9333", 10);
+export const MAIN = "main";
+const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
+
+function readPorts(): Record<string, number> {
+  try {
+    return JSON.parse(readFileSync(SESSIONS_FILE, "utf8")) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+/** The port a session's browser listens on, if it has one yet. */
+export function peekPort(session: string): number | undefined {
+  if (session === MAIN) return BASE_PORT;
+  return readPorts()[session];
+}
+/** The port for a session, given once and kept, so its window always answers on the same address. */
+export function portFor(session: string): number {
+  if (session === MAIN) return BASE_PORT;
+  const map = readPorts();
+  if (typeof map[session] === "number") return map[session];
+  const used = new Set<number>([BASE_PORT, ...Object.values(map)]);
+  let p = BASE_PORT + 1;
+  while (used.has(p)) p++;
+  if (p > BASE_PORT + 60) throw new Error("No free debugging port is left for another browser session.");
+  map[session] = p;
+  mkdirSync(DATA_DIR, { recursive: true });
+  writeFileSync(SESSIONS_FILE, JSON.stringify(map, null, 1), "utf8");
+  return p;
+}
+/** Each session keeps its own sign-ins in its own folder. "main" stays where it always was. */
+export function profileDir(session: string): string {
+  return path.join(DATA_DIR, session === MAIN ? "chrome-profile" : `chrome-profile-${session}`);
+}
+/** The key a session's sign-in state is saved under. Main keeps the plain platform id. */
+export function loginKey(session: string, pid: string): string {
+  return session === MAIN ? pid : `${session}/${pid}`;
+}
 
 /** Where to sign in, and (where it is reliable) the cookie that proves it. */
 interface LoginSpec {
@@ -114,9 +154,9 @@ class Cdp {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-async function debuggerUrl(): Promise<string | null> {
+async function debuggerUrl(port: number): Promise<string | null> {
   try {
-    const r = await fetch(`${BASE}/json/version`, { signal: AbortSignal.timeout(1500) });
+    const r = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(1500) });
     if (!r.ok) return null;
     const j = (await r.json()) as { webSocketDebuggerUrl?: string };
     return j.webSocketDebuggerUrl ?? null;
@@ -124,8 +164,9 @@ async function debuggerUrl(): Promise<string | null> {
     return null;
   }
 }
-export async function browserRunning(): Promise<boolean> {
-  return (await debuggerUrl()) !== null;
+export async function browserRunning(session: string = MAIN): Promise<boolean> {
+  const port = peekPort(session);
+  return port !== undefined && (await debuggerUrl(port)) !== null;
 }
 
 function chromeExe(): string {
@@ -147,15 +188,16 @@ function chromeExe(): string {
 }
 
 /** Start the sigsche browser if it is not already running. Returns its DevTools URL. */
-export async function ensureBrowser(openUrl?: string): Promise<string> {
-  const existing = await debuggerUrl();
+export async function ensureBrowser(session: string = MAIN, openUrl?: string): Promise<string> {
+  const port = portFor(session);
+  const existing = await debuggerUrl(port);
   if (existing) return existing;
   const extra = (process.env["SIGSCHE_CHROME_ARGS"] ?? "").split(" ").filter(Boolean);
   const child = spawn(
     chromeExe(),
     [
-      `--remote-debugging-port=${PORT}`,
-      `--user-data-dir=${PROFILE_DIR}`,
+      `--remote-debugging-port=${port}`,
+      `--user-data-dir=${profileDir(session)}`,
       "--no-first-run",
       "--no-default-browser-check",
       ...extra,
@@ -166,7 +208,7 @@ export async function ensureBrowser(openUrl?: string): Promise<string> {
   child.unref();
   for (let i = 0; i < 40; i++) {
     await sleep(500);
-    const url = await debuggerUrl();
+    const url = await debuggerUrl(port);
     if (url) return url;
   }
   throw new Error("The sigsche browser did not start within 20 seconds.");
@@ -182,12 +224,12 @@ async function openTab(cdp: Cdp, url: string): Promise<string> {
 }
 
 /** Open a platform's sign-in page in the sigsche browser. */
-export async function openLogin(pid: string, instance?: string): Promise<{ url: string }> {
+export async function openLogin(pid: string, instance?: string, session: string = MAIN): Promise<{ url: string; session: string }> {
   const spec = LOGIN[pid];
   if (!spec) throw new Error(`'${pid}' is a phone-only app: there is no web sign-in.`);
   const url = pid === "mastodon" && instance ? `https://${instance}/auth/sign_in` : spec.url;
-  const was = await browserRunning();
-  const ws = await ensureBrowser(was ? undefined : url);
+  const was = await browserRunning(session);
+  const ws = await ensureBrowser(session, was ? undefined : url);
   if (was) {
     const cdp = await Cdp.open(ws);
     try {
@@ -196,7 +238,7 @@ export async function openLogin(pid: string, instance?: string): Promise<{ url: 
       cdp.close();
     }
   }
-  return { url };
+  return { url, session };
 }
 
 export type LoginState = "signed_in" | "signed_out" | "marked" | "unknown" | "no_web";
@@ -212,8 +254,10 @@ export interface LoginStatus {
  */
 export async function loginStatuses(
   pids: string[],
+  session: string = MAIN,
 ): Promise<{ browser: boolean; status: Record<string, LoginStatus> }> {
-  const ws = await debuggerUrl();
+  const port = peekPort(session);
+  const ws = port === undefined ? null : await debuggerUrl(port);
   let cookies: Array<{ name: string; value: string; domain: string }> | null = null;
   if (ws) {
     try {
@@ -251,19 +295,20 @@ export async function loginStatuses(
       detected[pid] = hit;
       status[pid] = { state: hit ? "signed_in" : "signed_out", detectable: true };
     } else if (want) {
-      const last = saved[pid]?.detected;
+      const last = saved[loginKey(session, pid)]?.detected;
       status[pid] = {
         state: last === true ? "signed_in" : last === false ? "signed_out" : "unknown",
         detectable: true,
       };
     } else {
-      status[pid] = { state: saved[pid]?.marked ? "marked" : "unknown", detectable: false };
+      status[pid] = { state: saved[loginKey(session, pid)]?.marked ? "marked" : "unknown", detectable: false };
     }
   }
   if (cookies && Object.keys(detected).length > 0) {
     mutate((s) => {
       for (const [pid, hit] of Object.entries(detected)) {
-        s.logins[pid] = { ...(s.logins[pid] ?? {}), detected: hit, at: Date.now() };
+        const key = loginKey(session, pid);
+        s.logins[key] = { ...(s.logins[key] ?? {}), detected: hit, at: Date.now() };
       }
     });
   }
@@ -287,8 +332,9 @@ export async function assistPost(
   caption: string,
   file: string | null,
   fillCaption: boolean,
+  browserSession: string = MAIN,
 ): Promise<AssistResult> {
-  const ws = await ensureBrowser();
+  const ws = await ensureBrowser(browserSession);
   const cdp = await Cdp.open(ws);
   const out: AssistResult = { opened: false, caption_filled: false, file_attached: false };
   try {

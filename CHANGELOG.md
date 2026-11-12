@@ -2,6 +2,43 @@
 
 One entry per version, newest first. Each version is one commit on the `sigsche-v13` branch.
 
+## v13.4 · 12.11.2026 · per-session browsers
+
+- Each sign-in session now has its own Chrome profile folder and remote-debugging
+  port. `main` keeps the original profile on port 9333; other sessions get the
+  next free port, persisted in `data/sessions.json`.
+- Every saved handle has a session (default `main`). A handle signs in on its
+  own session, so two handles on one platform can stay signed in at once.
+- Posting uses the handle the brand routes to (or the one named) and posts from
+  that handle's session. The upload result reports `from` and `session`.
+- Dashboard **Accounts**: a Log in button on each handle, a live signed-in
+  state per handle, and corrected copy about sessions.
+- MCP: `baatjie_sigsche_login` takes `session`; `baatjie_sigsche_upload` takes
+  `account_id`; `baatjie_sigsche_accounts` shows the signed-in state; the
+  account save note describes sessions.
+- HTTP: `POST /api/login/:pid` accepts `session`; new `GET /api/accounts`;
+  `POST /api/upload` accepts `accountId`.
+
+Tested: `_sigsche-build/test-13.4.mjs` (20 of 20), with 13.1 (12), 13.2 (14) and
+13.3 (18) re-run. Typecheck and build clean. Not yet run against live
+platform pages: that needs the master MCP restarted and a sign-in on a second
+session.
+
+## v13.3 · 12.11.2026 · many handles per platform
+
+- Up to 8 handles per platform (`settings.acct`), one primary per platform. The
+  primary is mirrored into `settings.plat[pid].h`, so existing code keeps working.
+- A handle can be tied to a business, switched on or off, and labelled. A handle
+  tied to no business is the fallback for any business.
+- Duplicate handles are refused, comparing links and @ forms as the same name.
+- Handles saved before v13.3 appear as the platform's first account (marked
+  legacy) and are written into the register on the next save.
+- Dashboard **Accounts** tab and three MCP tools: `baatjie_sigsche_accounts`,
+  `baatjie_sigsche_account_save`, `baatjie_sigsche_account_remove`.
+
+Tested: `_sigsche-build/test-13.3.mjs` (18 of 18), with 13.1 and 13.2 restored
+and re-run.
+
 ## v13.2 · 11.11.2026 · godsview
 
 - New **godsview** tab: one live screen for the property, read from tanOS and

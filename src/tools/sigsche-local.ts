@@ -18,6 +18,7 @@ import {
   brandOf,
   businesses,
   catalog,
+  cleanSession,
   findItem,
   handleOf,
   items,
@@ -707,13 +708,16 @@ Args:
     "baatjie_sigsche_login",
     {
       title: "Open a Platform Sign-in",
-      description: `Open a platform's sign-in page in the sigsche browser (a Chrome window with its own saved profile on this computer). Baatjie signs in himself; the session is kept for later uploads. This never types credentials.
+      description: `Open a platform's sign-in page in a sigsche browser (a Chrome window with its own saved profile on this computer). Baatjie signs in himself; the session is kept for later uploads. This never types credentials.
+
+Each sign-in session has its own browser, so two accounts on one platform can stay signed in at once: use session 'main' (the default) for the first, and a separate session name (e.g. 'locare') for another handle. The session is kept in data/sessions.json.
 
 Args:
   - platform (string): Platform id, e.g. 'instagram', 'linkedin', 'tiktok'
+  - session (string, optional): Browser session name: 1 to 24 lower-case letters, digits or hyphens. Default 'main'.
 
 After he has signed in, baatjie_sigsche_platforms shows the state.`,
-      inputSchema: { platform: z.string().min(1), response_format: responseFormatField },
+      inputSchema: { platform: z.string().min(1), session: z.string().optional(), response_format: responseFormatField },
       annotations: OUTSIDE,
     },
     async (params) => {
@@ -722,8 +726,9 @@ After he has signed in, baatjie_sigsche_platforms shows the state.`,
         if (!pl) throw new Error(`Unknown platform '${params.platform}'`);
         const handle = handleOf(readState(), "mastodon");
         const inst = (handle.match(/^https?:\/\/([^/\s]+)/) ?? handle.match(/@[^@\s]+@([\w.-]+)/))?.[1];
-        const { url } = await openLogin(pl.id, inst);
-        return respond(params.response_format, `Opened ${pl.name} sign-in in the sigsche browser: ${url}`, { ok: true, platform: pl.id, url });
+        const session = cleanSession(params.session);
+        const { url } = await openLogin(pl.id, inst, session);
+        return respond(params.response_format, `Opened ${pl.name} sign-in in the sigsche browser (${session}): ${url}`, { ok: true, platform: pl.id, session, url });
       } catch (error) {
         return toErrorResponse(error);
       }
@@ -743,15 +748,26 @@ The card image is used when the dashboard has saved it (it does so when Upload i
 Args:
   - id (string): Post or signal id from baatjie_sigsche_signals
   - platform (string): Platform id
+  - account_id (string, optional): Which saved handle on that platform to post from. Default: the handle the brand uses, else the primary one.
 
-Returns: { "platform","method": "api" | "browser" | "clipboard","posted","card_attached","caption_filled","where"?,"next" }`,
-      inputSchema: { id: z.string().min(1), platform: z.string().min(1), response_format: responseFormatField },
+Returns: { "platform","method": "api" | "browser" | "clipboard","posted","card_attached","caption_filled","from","session","where"?,"next" }`,
+      inputSchema: {
+        id: z.string().min(1),
+        platform: z.string().min(1),
+        account_id: z.string().optional(),
+        response_format: responseFormatField,
+      },
       annotations: OUTSIDE,
     },
     async (params) => {
       try {
-        const r = await upload({ pid: params.platform, itemId: params.id });
-        return respond(params.response_format, `**${r.platform}** via ${r.method}: ${r.posted ? `posted${r.where ? ` → ${r.where}` : ""}` : "prepared"}. ${r.next}`, r);
+        const r = await upload({
+          pid: params.platform,
+          itemId: params.id,
+          ...(params.account_id ? { accountId: params.account_id } : {}),
+        });
+        const who = r.from ? ` as ${r.from}` : "";
+        return respond(params.response_format, `**${r.platform}**${who} via ${r.method}: ${r.posted ? `posted${r.where ? ` → ${r.where}` : ""}` : "prepared"}. ${r.next}`, r);
       } catch (error) {
         return toErrorResponse(error);
       }

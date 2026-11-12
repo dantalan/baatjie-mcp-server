@@ -12,6 +12,7 @@
  */
 
 import {
+  SESSION_RE,
   allBrands,
   catalog,
   handleOf,
@@ -130,6 +131,24 @@ export function targetAccounts(s: SigscheState, pid: string, brand?: string): Ac
 }
 
 /**
+ * The account a post goes out from: the one named, else the first handle that
+ * takes this brand (or any unbranded one). Undefined when the platform has no
+ * handle, and the caller falls back to the main session.
+ */
+export function chooseAccount(
+  s: SigscheState,
+  pid: string,
+  opts: { accountId?: string | undefined; brand?: string | undefined } = {},
+): Account | undefined {
+  if (opts.accountId) {
+    const a = accounts(s, pid).find((x) => x.id === opts.accountId);
+    if (!a) throw new Error(`No handle '${opts.accountId}' on that platform. Call baatjie_sigsche_accounts for the ids.`);
+    return a;
+  }
+  return targetAccounts(s, pid, opts.brand)[0];
+}
+
+/**
  * Keep settings.plat[pid].h pointing at the platform's primary handle. It reads
  * the saved register only, never the legacy handle derived from plat itself,
  * so removing the last handle on a platform really does empty it.
@@ -200,7 +219,11 @@ export function saveAccount(patch: AccountPatch): Account {
       if (b && !allBrands(s).some((x) => x.key === b)) throw new Error(`Unknown brand '${b}'. Call baatjie_sigsche_brands for the keys.`);
       rec["brand"] = b;
     }
-    if (patch.session !== undefined) rec["session"] = patch.session.trim().slice(0, 24) || "main";
+    if (patch.session !== undefined) {
+      const sess = patch.session.trim().toLowerCase();
+      if (!SESSION_RE.test(sess)) throw new Error("Session: 1 to 24 lower-case letters, digits or hyphens, e.g. 'dantalan' or 'locare-2'");
+      rec["session"] = sess;
+    }
     if (patch.on !== undefined) rec["on"] = patch.on;
     next[id] = rec;
     const pid = str(rec["pid"]);

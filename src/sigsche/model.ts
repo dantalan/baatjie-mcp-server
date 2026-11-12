@@ -91,6 +91,12 @@ export function brandOf(key: string, s?: SigscheState): Brand {
   if (!fallback) throw new Error("catalog.json has no brands");
   return fallback;
 }
+/** A browser session name: lower-case letters, digits and hyphens, 1 to 24. Anything else falls back to main. */
+export const SESSION_RE = /^[a-z0-9-]{1,24}$/;
+export function cleanSession(v: unknown): string {
+  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+  return SESSION_RE.test(s) ? s : "main";
+}
 export function platformOf(id: string): Platform | undefined {
   return catalog().platforms.find((p) => p.id === id);
 }

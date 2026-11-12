@@ -13,6 +13,7 @@ import {
   COLLECTIONS,
   PUBLIC_DIR,
   catalog,
+  cleanSession,
   deleteDoc,
   handleOf,
   mutate,
@@ -24,7 +25,7 @@ import {
   type CollectionName,
   type Doc,
 } from "./model.js";
-import { platformRows, upload } from "./service.js";
+import { accountLogins, platformRows, upload } from "./service.js";
 
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
@@ -125,11 +126,21 @@ export function mountSigsche(app: Express): void {
     try {
       const pid = String(req.params["pid"]);
       if (!platformOf(pid)) throw new Error("Unknown platform");
+      const body = (isDoc(req.body) ? req.body : {}) as { session?: unknown };
+      const session = cleanSession(body.session);
       const handle = handleOf(readState(), "mastodon");
       const inst = (handle.match(/^https?:\/\/([^/\s]+)/) ?? handle.match(/@[^@\s]+@([\w.-]+)/))?.[1];
-      res.json({ ok: true, ...(await openLogin(pid, inst)) });
+      res.json({ ok: true, ...(await openLogin(pid, inst, session)) });
     } catch (e) {
       fail(res, e);
+    }
+  });
+  /** Sign-in state for every saved handle, each read in the browser session that handle uses. */
+  app.get("/api/accounts", async (_req, res) => {
+    try {
+      res.json({ logins: await accountLogins() });
+    } catch (e) {
+      fail(res, e, 500);
     }
   });
   app.post("/api/login/:pid/mark", (req, res) => {
@@ -177,6 +188,7 @@ export function mountSigsche(app: Express): void {
       if (typeof b["pid"] !== "string") throw new Error("pid is required");
       const result = await upload({
         pid: b["pid"],
+        ...(typeof b["accountId"] === "string" ? { accountId: b["accountId"] } : {}),
         ...(typeof b["itemId"] === "string" ? { itemId: b["itemId"] } : {}),
         ...(typeof b["caption"] === "string" ? { caption: b["caption"] } : {}),
         ...(typeof b["url"] === "string" && /^https:\/\//.test(b["url"]) ? { url: b["url"] } : {}),

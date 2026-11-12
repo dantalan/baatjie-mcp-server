@@ -612,7 +612,7 @@ const PLANS=[
 const PLAN=Object.fromEntries(PLANS.map(p=>[p.key,p]));
 const exVat=n=>n/1.15;
 const TARGET=86417;
-const VER='v13.3',PRODUCT='sigsche',SITE='sigsche.co.za';
+const VER='v13.4',PRODUCT='sigsche',SITE='sigsche.co.za';
 // One naming rule for every download: sigsche-v12_<what>_<details>.<ext>
 function fname(parts,ext){return [PRODUCT+'-'+VER].concat(parts).filter(x=>x!=null&&x!=='').map(x=>String(x).replace(/[^\w.\-]+/g,'-').replace(/^-+|-+$/g,'')).join('_')+'.'+ext}
 const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']);
@@ -932,7 +932,7 @@ function render(){
  applyBiz();paintHeader();paintStore();
  if(editing()){pending=true;return}pending=false;
  const t=state.tab;
- if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();else if(t==='accounts')renderAccounts();else if(t==='godsview')renderGodsview();
+ if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();else if(t==='accounts'){renderAccounts();pullAcct()}else if(t==='godsview')renderGodsview();
 }
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pending&&!editing())render()},0));
 function paintHeader(){
@@ -1518,6 +1518,10 @@ window.addEventListener('hashchange',()=>{if(location.hash==='#godsview')pullGod
 // primary's handle is mirrored into settings.plat[pid].h so the rest of sigsche,
 // which expects a single handle, keeps working. No passwords, ever.
 const ACCT_MAX=8;
+// v13.4: sign-in state per handle, read from the browser session each handle uses.
+let acctLogins={};
+function pullAcct(){if(!LOCAL)return;fetch('/api/accounts').then(r=>r.json()).then(j=>{acctLogins=j.logins||{};renderAccounts()}).catch(()=>{})}
+function acctSess(v){const s=String(v||'').trim().toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,24);return s||'main'}
 function acctBag(){return state.settings.acct||{}}
 function acctKey(v){let t=String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/[?#].*$/,'').replace(/\/+$/,'');if(t.indexOf('/')>=0){const p=t.split('/').filter(Boolean);t=p[p.length-1]||t}return t.replace(/^@/,'')}
 function acctAll(pid){
@@ -1559,7 +1563,7 @@ function acctPatch(id,patch){
   if(!h){toast('A handle cannot be emptied. Remove it instead.',4000);renderAccounts();return}
   if(Object.keys(next).some(k=>k!==id&&next[k].pid===cur.pid&&acctKey(next[k].handle)===acctKey(h))){toast(h+' is already saved there',4000);renderAccounts();return}
   patch=Object.assign({},patch,{handle:h})}
- if(patch.session!==undefined)patch=Object.assign({},patch,{session:String(patch.session).trim().slice(0,24)||'main'});
+ if(patch.session!==undefined)patch=Object.assign({},patch,{session:acctSess(patch.session)});
  next[id]=Object.assign({},base,patch);
  if(patch.primary===true)Object.keys(next).forEach(k=>{if(next[k].pid===cur.pid)next[k]=Object.assign({},next[k],{primary:k===id})});
  else if(!Object.keys(next).some(k=>next[k].pid===cur.pid&&next[k].primary===true))next[id]=Object.assign({},next[id],{primary:true});
@@ -1575,7 +1579,6 @@ function acctRemove(id){
 }
 function acctBrandOpts(sel){return '<option value=""'+(sel?'':' selected')+'>Any business</option>'+bizKeys().map(k=>'<option value="'+k+'"'+(sel===k?' selected':'')+'>'+esc(BR[k].name)+'</option>').join('')}
 function acctRow(a){
- const info=LOCAL?(platInfo[a.pid]||{}):{};
  const sig=a.legacy?'<span class="tag">FROM v13.2</span>':'';
  return '<div data-aid="'+esc(a.id)+'" style="border-top:1px solid var(--line);padding-top:9px;margin-top:9px;display:grid;gap:6px">'
   +'<div class="pf" style="flex-wrap:wrap;gap:6px">'+(a.primary?'<span class="tag green">PRIMARY</span>':'')+(a.on?'':'<span class="tag">OFF</span>')+sig+(a.session!=='main'?'<span class="tag gold">SESSION '+esc(a.session.toUpperCase())+'</span>':'')+'</div>'
@@ -1587,7 +1590,7 @@ function acctRow(a){
   +'<button class="btn'+(a.on?' green':'')+'" data-act="acctOn" aria-pressed="'+a.on+'">'+(a.on?'On':'Off')+'</button>'
   +'<button class="btn" data-act="acctSession">Session · '+esc(a.session)+'</button>'
   +'<button class="btn" data-act="acctDel">Remove</button></span>'
-  +(info.login==='signed_in'||info.login==='marked'?'<span>signed in on main</span>':'')+'</div></div>';
+  +(LOCAL?'<button class="btn" data-act="acctLogin">Log in</button><span class="note">'+esc((acctLogins[a.id]||'unknown').replace(/_/g,' '))+'</span>':'')+'</div></div>';
 }
 function renderAccounts(){
  state.af=state.af||'all';
@@ -1609,9 +1612,14 @@ Object.assign(ACT,{
  acctFilter(el){state.af=el.dataset.v;renderAccounts()},
  acctPrimary(el){acctPatch(el.closest('[data-aid]').dataset.aid,{primary:true});toast('Primary handle set')},
  acctOn(el){const id=el.closest('[data-aid]').dataset.aid,a=acctAll().find(x=>x.id===id);if(a)acctPatch(id,{on:!a.on})},
+ acctLogin(el){const a=acctAll().find(x=>x.id===el.closest('[data-aid]').dataset.aid);if(!a)return;
+  toast('Opening '+PLAT[a.pid].name+' in session '+a.session,4000);
+  fetch('/api/login/'+encodeURIComponent(a.pid),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session:a.session})})
+   .then(r=>r.json()).then(j=>{if(j.error)throw new Error(j.error);toast('Sign in in that window, then it updates here',5000);setTimeout(pullAcct,5000)})
+   .catch(e=>toast(String(e.message||e),6000))},
  acctDel(el){const id=el.closest('[data-aid]').dataset.aid;twoTap(el,'ac'+id,'Tap again',()=>{acctRemove(id);toast('Handle removed')})},
  acctSession(el){const id=el.closest('[data-aid]').dataset.aid,a=acctAll().find(x=>x.id===id);if(!a)return;
-  modal('Browser session','<p class="note">Which sigsche browser profile this handle signs in on. Two handles on one platform cannot both be signed in on <b>main</b>.</p><input class="ctrl" id="m-session" maxlength="24" value="'+esc(a.session)+'">','Save',()=>{acctPatch(id,{session:$('#m-session').value});toast('Session saved')})}
+  modal('Browser session','<p class="note">Which sigsche browser profile this handle signs in on. Each session is its own browser, so two handles on one platform can be signed in at once when they use different sessions.</p><input class="ctrl" id="m-session" maxlength="24" value="'+esc(a.session)+'">','Save',()=>{acctPatch(id,{session:$('#m-session').value});toast('Session saved')})}
 });
 $('#acct-form').addEventListener('submit',e=>{
  e.preventDefault();acctAdd($('#a-plat').value,$('#a-handle').value,$('#a-label').value,$('#a-brand').value);

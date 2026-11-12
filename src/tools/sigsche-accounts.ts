@@ -10,6 +10,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ACCT_MAX, accounts, removeAccount, saveAccount, targetAccounts } from "../sigsche/accounts.js";
 import { catalog, platformOf, readState } from "../sigsche/model.js";
+import { accountLogins } from "../sigsche/service.js";
 import { respond, toErrorResponse } from "../services/format.js";
 import { responseFormatField } from "../schemas.js";
 
@@ -65,8 +66,9 @@ Returns: { "total","platforms_used","limit","accounts":[{ "id","pid","platform",
         if (params.only === "on") list = list.filter((a) => a.on);
         if (params.only === "primary") list = list.filter((a) => a.primary);
         const used = new Set(list.map((a) => a.pid)).size;
+        const logins = await accountLogins().catch(() => ({} as Record<string, string>));
         const md = table(
-          ["platform", "handle", "label", "brand", "primary", "on", "session", "id"],
+          ["platform", "handle", "label", "brand", "primary", "on", "session", "signed in", "id"],
           list.map((a) => [
             a.pid,
             a.handle,
@@ -75,6 +77,7 @@ Returns: { "total","platforms_used","limit","accounts":[{ "id","pid","platform",
             a.primary ? "yes" : "",
             a.on ? "on" : "off",
             a.session,
+            logins[a.id] ?? "unknown",
             a.id,
           ]),
         );
@@ -111,7 +114,7 @@ Args:
 
 Returns: { "ok": true, "account": {...} }
 
-Note: sigsche's browser holds one signed-in session per platform per profile, so two handles on the same platform cannot both be signed in on 'main'. Give the second one its own session name and sign in there yourself.`,
+Note: each session name is its own browser profile, and one platform can be signed in once per profile. Two handles on the same platform can both stay signed in when they use different session names (e.g. 'main' and 'locare'). Baatjie signs in to each himself with baatjie_sigsche_login, passing the session.`,
       inputSchema: {
         id: z.string().max(80).optional(),
         platform: z.string().optional(),
