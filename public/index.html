@@ -223,6 +223,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
   <a href="#compose">Compose</a>
   <a href="#posts">Queue</a>
   <a href="#platforms">Platforms · 33</a>
+  <a href="#accounts">Accounts</a>
   <a href="#business">Businesses</a>
   <a href="#taluna">Taluna</a>
   <a href="#cards">Cards</a>
@@ -304,6 +305,30 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
     <b>Copy + open</b> (19 platforms): the chip copies the caption and opens the platform, where you paste it and attach the card.<br>
     <b>Copy · post in app</b> (2 platforms): phone-only apps. The chip copies the caption for you.<br><br>
     <b>Sign-in and upload</b> run in the localhost edition, served by your master MCP at <b>http://localhost:8641</b>. There, <b>Log in</b> opens the platform in the sigsche browser (its own Chrome window that keeps your sessions), and each Queue chip becomes <b>Upload ↑</b>: it opens the post box in that signed-in window, attaches the card and fills the caption, and you press Post. Bluesky, Mastodon, Telegram and Discord can post fully automatically once you save an API token. Mxit closed years ago, so its slot now holds Google Business Profile, which is where agencies get found locally.</div>
+  </div>
+</section>
+
+<!-- ACCOUNTS -->
+<section class="tab" id="tab-accounts">
+  <h2>ACCOUNTS · EVERY HANDLE YOU POST FROM</h2>
+  <p class="sub">A platform can hold more than one account. Add every handle here, say which business each one speaks for, and mark the primary. A handle tied to a business takes that business's posts; a handle tied to none takes anything that has no handle of its own. Switched off means it receives nothing. No passwords are kept here, ever.</p>
+  <div class="kpis" id="acct-kpis"></div>
+  <div class="card"><h3>Add a handle</h3>
+    <form id="acct-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+      <select class="ctrl" id="a-plat" aria-label="Platform" style="min-width:150px"></select>
+      <input class="ctrl" id="a-handle" maxlength="120" aria-label="Handle or page link" placeholder="@handle or page link" style="flex:1;min-width:170px">
+      <input class="ctrl" id="a-label" maxlength="40" aria-label="What this account is" placeholder="What it is, e.g. main page" style="min-width:150px">
+      <select class="ctrl" id="a-brand" aria-label="Business" style="min-width:140px"></select>
+      <button class="btn green" type="submit">Add</button>
+    </form>
+    <p class="note">The first handle on a platform becomes its primary automatically. Up to 8 per platform.</p>
+  </div>
+  <div class="chips" id="acct-filter"></div>
+  <div class="pgrid" id="acct-grid"></div>
+  <div class="card" style="margin-top:14px"><h3>Signing in with more than one account</h3>
+    <div class="list">The sigsche browser keeps <b>one signed-in session per platform per profile</b>. Two handles on the same platform cannot both be signed in on <b>main</b> at the same time.<br><br>
+    Give the second handle its own <b>session</b> name and sign in there yourself when you post from it. Session names are a label for now: sigsche runs the one browser profile, so a second profile is still to be built.<br><br>
+    Platforms with an API token (Bluesky, Mastodon, Telegram, Discord) post without a browser, but the token is saved per platform, not per handle. Per-handle tokens come next.</div>
   </div>
 </section>
 
@@ -587,7 +612,7 @@ const PLANS=[
 const PLAN=Object.fromEntries(PLANS.map(p=>[p.key,p]));
 const exVat=n=>n/1.15;
 const TARGET=86417;
-const VER='v13.2',PRODUCT='sigsche',SITE='sigsche.co.za';
+const VER='v13.3',PRODUCT='sigsche',SITE='sigsche.co.za';
 // One naming rule for every download: sigsche-v12_<what>_<details>.<ext>
 function fname(parts,ext){return [PRODUCT+'-'+VER].concat(parts).filter(x=>x!=null&&x!=='').map(x=>String(x).replace(/[^\w.\-]+/g,'-').replace(/^-+|-+$/g,'')).join('_')+'.'+ext}
 const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']);
@@ -902,12 +927,12 @@ function cardName(p,fmt){return fname(['card',p.b==='node1'?'nodeone':BR[p.b].re
 /* ---------------- render ---------------- */
 let renderT=0;function renderSoon(){cancelAnimationFrame(renderT);renderT=requestAnimationFrame(render)}
 let pending=false;
-function editing(){const a=document.activeElement;return a&&a.matches&&a.matches('input,textarea,select')&&a.closest('#post-list,#lead-body,#tl-entry,#plat-grid,#biz-grid')}
+function editing(){const a=document.activeElement;return a&&a.matches&&a.matches('input,textarea,select')&&a.closest('#post-list,#lead-body,#tl-entry,#plat-grid,#biz-grid,#acct-grid,#acct-form')}
 function render(){
  applyBiz();paintHeader();paintStore();
  if(editing()){pending=true;return}pending=false;
  const t=state.tab;
- if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();else if(t==='godsview')renderGodsview();
+ if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();else if(t==='accounts')renderAccounts();else if(t==='godsview')renderGodsview();
 }
 document.addEventListener('focusout',()=>setTimeout(()=>{if(pending&&!editing())render()},0));
 function paintHeader(){
@@ -1488,8 +1513,113 @@ function renderGodsview(){
 setInterval(()=>{if(state.tab==='godsview')pullGods()},15000);
 window.addEventListener('hashchange',()=>{if(location.hash==='#godsview')pullGods()});
 
+/* ---------------- accounts: many handles per platform (v13.3) ---------------- */
+// Handles live in settings.acct, keyed by id. One per platform is primary, and the
+// primary's handle is mirrored into settings.plat[pid].h so the rest of sigsche,
+// which expects a single handle, keeps working. No passwords, ever.
+const ACCT_MAX=8;
+function acctBag(){return state.settings.acct||{}}
+function acctKey(v){let t=String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/[?#].*$/,'').replace(/\/+$/,'');if(t.indexOf('/')>=0){const p=t.split('/').filter(Boolean);t=p[p.length-1]||t}return t.replace(/^@/,'')}
+function acctAll(pid){
+ const B=acctBag(),out=[];
+ Object.keys(B).forEach(id=>{const r=B[id];if(!r||!PLAT[r.pid])return;
+  out.push({id:id,pid:r.pid,handle:r.handle||'',label:r.label||'',brand:r.brand||'',session:r.session||'main',on:r.on!==false,primary:r.primary===true,at:r.at||0,legacy:false})});
+ PLATFORMS.forEach(pl=>{const h=handleOf(pl.id);if(!h||out.some(a=>a.pid===pl.id))return;
+  out.push({id:pl.id+':0',pid:pl.id,handle:h,label:'saved before v13.3',brand:'',session:'main',on:true,primary:true,at:0,legacy:true})});
+ const ord=id=>{const i=PLATFORMS.findIndex(p=>p.id===id);return i<0?99:i};
+ out.sort((a,b)=>ord(a.pid)-ord(b.pid)||(b.primary?1:0)-(a.primary?1:0)||a.at-b.at);
+ return pid?out.filter(a=>a.pid===pid):out;
+}
+// Start from a bag that already holds any pre-v13.3 handle, so saving never loses one.
+function acctSeed(){const next=Object.assign({},acctBag());
+ acctAll().forEach(a=>{if(a.legacy&&!next[a.id])next[a.id]={pid:a.pid,handle:a.handle,label:'',brand:'',session:'main',on:true,primary:true,at:Date.now()}});
+ return next}
+function acctWrite(next,pid){
+ state.settings.acct=next;
+ const mine=Object.keys(next).filter(k=>next[k].pid===pid).sort((x,y)=>(next[x].at||0)-(next[y].at||0));
+ const prim=mine.filter(k=>next[k].primary===true)[0]||mine[0];
+ setPlat(pid,{h:prim?next[prim].handle:''});
+}
+function acctAdd(pid,handle,label,brand){
+ const h=String(handle||'').replace(/[\r\n\t]+/g,' ').trim().slice(0,120);
+ if(!PLAT[pid]){toast('Pick a platform first');return}
+ if(!h){toast("A handle is needed: '@name', a page link, or '@you@instance'",4000);return}
+ const mine=acctAll(pid);
+ if(mine.length>=ACCT_MAX){toast(PLAT[pid].name+' already holds '+ACCT_MAX+' handles, which is the limit',4000);return}
+ if(mine.some(a=>acctKey(a.handle)===acctKey(h))){toast(h+' is already saved on '+PLAT[pid].name,4000);return}
+ const next=acctSeed(),id=pid+':'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+ next[id]={pid:pid,handle:h,label:String(label||'').trim().slice(0,40),brand:brand||'',session:'main',on:true,primary:mine.length===0,at:Date.now()};
+ acctWrite(next,pid);toast('Added '+h+' on '+PLAT[pid].name);
+}
+function acctPatch(id,patch){
+ const cur=acctAll().find(a=>a.id===id);if(!cur)return;
+ const next=acctSeed();
+ const base=next[id]||{pid:cur.pid,handle:cur.handle,label:cur.label,brand:cur.brand,session:cur.session,on:cur.on,primary:cur.primary,at:cur.at||Date.now()};
+ if(patch.handle!==undefined){const h=String(patch.handle).replace(/[\r\n\t]+/g,' ').trim().slice(0,120);
+  if(!h){toast('A handle cannot be emptied. Remove it instead.',4000);renderAccounts();return}
+  if(Object.keys(next).some(k=>k!==id&&next[k].pid===cur.pid&&acctKey(next[k].handle)===acctKey(h))){toast(h+' is already saved there',4000);renderAccounts();return}
+  patch=Object.assign({},patch,{handle:h})}
+ if(patch.session!==undefined)patch=Object.assign({},patch,{session:String(patch.session).trim().slice(0,24)||'main'});
+ next[id]=Object.assign({},base,patch);
+ if(patch.primary===true)Object.keys(next).forEach(k=>{if(next[k].pid===cur.pid)next[k]=Object.assign({},next[k],{primary:k===id})});
+ else if(!Object.keys(next).some(k=>next[k].pid===cur.pid&&next[k].primary===true))next[id]=Object.assign({},next[id],{primary:true});
+ acctWrite(next,cur.pid);
+}
+function acctRemove(id){
+ const cur=acctAll().find(a=>a.id===id);if(!cur)return;
+ const next=acctSeed(),wasPrimary=(next[id]||{}).primary===true;
+ delete next[id];
+ if(wasPrimary){const rest=Object.keys(next).filter(k=>next[k].pid===cur.pid).sort((x,y)=>(next[x].at||0)-(next[y].at||0));
+  if(rest[0])next[rest[0]]=Object.assign({},next[rest[0]],{primary:true})}
+ acctWrite(next,cur.pid);
+}
+function acctBrandOpts(sel){return '<option value=""'+(sel?'':' selected')+'>Any business</option>'+bizKeys().map(k=>'<option value="'+k+'"'+(sel===k?' selected':'')+'>'+esc(BR[k].name)+'</option>').join('')}
+function acctRow(a){
+ const info=LOCAL?(platInfo[a.pid]||{}):{};
+ const sig=a.legacy?'<span class="tag">FROM v13.2</span>':'';
+ return '<div data-aid="'+esc(a.id)+'" style="border-top:1px solid var(--line);padding-top:9px;margin-top:9px;display:grid;gap:6px">'
+  +'<div class="pf" style="flex-wrap:wrap;gap:6px">'+(a.primary?'<span class="tag green">PRIMARY</span>':'')+(a.on?'':'<span class="tag">OFF</span>')+sig+(a.session!=='main'?'<span class="tag gold">SESSION '+esc(a.session.toUpperCase())+'</span>':'')+'</div>'
+  +'<input class="ctrl" data-ac="handle" maxlength="120" aria-label="Handle" value="'+esc(a.handle)+'">'
+  +'<input class="ctrl" data-ac="label" maxlength="40" aria-label="What this account is" placeholder="What it is, e.g. main page" value="'+esc(a.label)+'">'
+  +'<select class="ctrl" data-ac="brand" aria-label="Business this handle posts for">'+acctBrandOpts(a.brand)+'</select>'
+  +'<div class="pf" style="flex-wrap:wrap;gap:6px"><span style="display:flex;gap:5px;flex-wrap:wrap">'
+  +(a.primary?'':'<button class="btn" data-act="acctPrimary">Make primary</button>')
+  +'<button class="btn'+(a.on?' green':'')+'" data-act="acctOn" aria-pressed="'+a.on+'">'+(a.on?'On':'Off')+'</button>'
+  +'<button class="btn" data-act="acctSession">Session · '+esc(a.session)+'</button>'
+  +'<button class="btn" data-act="acctDel">Remove</button></span>'
+  +(info.login==='signed_in'||info.login==='marked'?'<span>signed in on main</span>':'')+'</div></div>';
+}
+function renderAccounts(){
+ state.af=state.af||'all';
+ const all=acctAll(),used=new Set(all.map(a=>a.pid)),off=all.filter(a=>!a.on).length,branded=all.filter(a=>a.brand).length;
+ const multi=PLATFORMS.filter(p=>acctAll(p.id).length>1).length;
+ $('#acct-kpis').innerHTML=kpi(all.length,'Handles saved')+kpi(used.size+'/33','Platforms with a handle',used.size/33,'#2ECC8A')+kpi(multi,'Platforms with more than one',null,multi?'#2ECC8A':'')+kpi(branded+' / '+off,'Tied to a business / switched off',null,off?'#FFC93C':'#2ECC8A');
+ const ps=$('#a-plat'),bs=$('#a-brand'),pv=ps.value,bv=bs.value;
+ ps.innerHTML=PLATFORMS.map(p=>{const n=acctAll(p.id).length;return '<option value="'+p.id+'"'+(pv===p.id?' selected':'')+'>'+esc(p.name)+(n?' · '+n:'')+'</option>'}).join('');
+ bs.innerHTML=acctBrandOpts(bv);
+ const groups=[['all','WITH A HANDLE',used.size],['multi','MORE THAN ONE',multi],['none','STILL EMPTY',PLATFORMS.length-used.size],['every','ALL 33',PLATFORMS.length]];
+ $('#acct-filter').innerHTML=groups.map(g=>'<button class="chip" data-act="acctFilter" data-v="'+g[0]+'" aria-pressed="'+(state.af===g[0])+'">'+g[1]+' · '+g[2]+'</button>').join('');
+ const list=PLATFORMS.filter(p=>{const n=acctAll(p.id).length;return state.af==='every'?true:state.af==='multi'?n>1:state.af==='none'?n===0:n>0});
+ $('#acct-grid').innerHTML=list.map(pl=>{const mine=acctAll(pl.id),info=LOCAL?(platInfo[pl.id]||{}):{};
+  return '<div class="pcard'+(mine.length?' on':'')+'" data-pid="'+pl.id+'"><div class="ph"><span class="ptile" style="color:'+pl.color+'">'+pl.abbr+'</span><div class="tx"><b>'+esc(pl.name)+'</b><small>'+(mine.length?mine.length+' of '+ACCT_MAX+' handles':'no handle yet')+' · '+(isOn(pl.id)?'posting on':'posting off')+'</small></div>'+(LOCAL&&info.login!=='no_web'?'<button class="btn" data-act="platLogin" data-pid="'+pl.id+'">Log in</button>':'')+'</div>'
+   +(mine.length?mine.map(acctRow).join(''):'<p class="note">Add one above and it becomes the primary handle for '+esc(pl.name)+'.</p>')+'</div>'}).join('')
+  ||'<div class="card empty">No handles saved yet. Add the first one above.</div>';
+}
+Object.assign(ACT,{
+ acctFilter(el){state.af=el.dataset.v;renderAccounts()},
+ acctPrimary(el){acctPatch(el.closest('[data-aid]').dataset.aid,{primary:true});toast('Primary handle set')},
+ acctOn(el){const id=el.closest('[data-aid]').dataset.aid,a=acctAll().find(x=>x.id===id);if(a)acctPatch(id,{on:!a.on})},
+ acctDel(el){const id=el.closest('[data-aid]').dataset.aid;twoTap(el,'ac'+id,'Tap again',()=>{acctRemove(id);toast('Handle removed')})},
+ acctSession(el){const id=el.closest('[data-aid]').dataset.aid,a=acctAll().find(x=>x.id===id);if(!a)return;
+  modal('Browser session','<p class="note">Which sigsche browser profile this handle signs in on. Two handles on one platform cannot both be signed in on <b>main</b>.</p><input class="ctrl" id="m-session" maxlength="24" value="'+esc(a.session)+'">','Save',()=>{acctPatch(id,{session:$('#m-session').value});toast('Session saved')})}
+});
+$('#acct-form').addEventListener('submit',e=>{
+ e.preventDefault();acctAdd($('#a-plat').value,$('#a-handle').value,$('#a-label').value,$('#a-brand').value);
+ $('#a-handle').value='';$('#a-label').value='';$('#a-handle').focus();
+});
+
 /* ---------------- routing & boot ---------------- */
-const TABS=['today','godsview','compose','platforms','business','taluna','posts','cards','outreach','partner','pricing','anime','export'];
+const TABS=['today','godsview','compose','platforms','accounts','business','taluna','posts','cards','outreach','partner','pricing','anime','export'];
 function route(){const h=(location.hash||'').replace('#','');state.tab=TABS.includes(h)?h:'today';$$('.tab').forEach(s=>s.classList.toggle('on',s.id==='tab-'+state.tab));$$('#nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+state.tab?'page':'false'));render()}
 window.addEventListener('hashchange',route);
 window.addEventListener('resize',paintHeader);

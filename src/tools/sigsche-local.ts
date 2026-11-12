@@ -272,14 +272,16 @@ Returns:
     "baatjie_sigsche_platforms",
     {
       title: "sigsche Platform Dashboard",
-      description: `All 33 platforms on one table: switched on or off, saved handle, sign-in state in the sigsche browser, whether a direct API token is saved, and how many posts have been ticked there.
+      description: `All 33 platforms on one table: switched on or off, how many handles are saved and which is primary, sign-in state in the sigsche browser, whether a direct API token is saved, and how many posts have been ticked there.
+
+A platform can hold several handles. This table shows the count and the primary one; baatjie_sigsche_accounts lists them all, and baatjie_sigsche_account_save adds one.
 
 login is 'signed_in' / 'signed_out' where a session cookie proves it, 'marked' where Baatjie confirmed it himself, 'unknown' otherwise, 'no_web' for phone-only apps.
 
 Args:
   - only ('all' | 'on' | 'signed_in'): Filter (default 'all')
 
-Returns: { "browser_running", "platforms": [{ "id","name","group","mode","on","handle","login","api","api_ready","posted" }] }`,
+Returns: { "browser_running", "platforms": [{ "id","name","group","mode","on","handle","handles","login","api","api_ready","posted" }] }`,
       inputSchema: {
         only: z.enum(["all", "on", "signed_in"]).default("all"),
         response_format: responseFormatField,
@@ -293,8 +295,8 @@ Returns: { "browser_running", "platforms": [{ "id","name","group","mode","on","h
           params.only === "on" ? r.on : params.only === "signed_in" ? r.login === "signed_in" || r.login === "marked" : true,
         );
         const md = table(
-          ["id", "name", "on", "login", "api", "posted", "handle"],
-          list.map((r) => [r.id, r.name, r.on ? "on" : "off", r.login, r.api ? (r.api_ready ? "ready" : "no token") : "–", r.posted, r.handle]),
+          ["id", "name", "on", "login", "api", "posted", "handles", "primary handle"],
+          list.map((r) => [r.id, r.name, r.on ? "on" : "off", r.login, r.api ? (r.api_ready ? "ready" : "no token") : "–", r.posted, r.handles, r.handle]),
         );
         return respond(params.response_format, `# Platforms (${list.length}) · browser ${browser ? "running" : "closed"}\n\n${md}`, {
           browser_running: browser,

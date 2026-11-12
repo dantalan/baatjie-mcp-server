@@ -5,6 +5,7 @@
  */
 
 import { existsSync } from "node:fs";
+import { handleCounts } from "./accounts.js";
 import { assistPost, copyToClipboard, loginStatuses, type LoginState } from "./browser.js";
 import { DIRECT_FIELDS, directConfigured, directPost } from "./direct.js";
 import {
@@ -28,6 +29,7 @@ export interface PlatformRow {
   mode: string;
   on: boolean;
   handle: string;
+  handles: number;
   login: LoginState;
   login_detectable: boolean;
   api: boolean;
@@ -41,6 +43,7 @@ export async function platformRows(): Promise<{ browser: boolean; rows: Platform
   const counts: Record<string, number> = {};
   for (const it of items(s)) for (const pid of Object.keys(it.done)) counts[pid] = (counts[pid] ?? 0) + 1;
   const { browser, status } = await loginStatuses(c.platforms.map((p) => p.id));
+  const handles = handleCounts(s);
   const rows = c.platforms.map((p) => ({
     id: p.id,
     name: p.name,
@@ -48,6 +51,7 @@ export async function platformRows(): Promise<{ browser: boolean; rows: Platform
     mode: p.mode,
     on: isOn(s, p.id),
     handle: handleOf(s, p.id),
+    handles: handles[p.id] ?? 0,
     login: status[p.id]?.state ?? "unknown",
     login_detectable: status[p.id]?.detectable ?? false,
     api: p.id in DIRECT_FIELDS,

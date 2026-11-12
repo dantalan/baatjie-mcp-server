@@ -28,6 +28,7 @@ import { registerSequencingTools } from "./tools/sequencing.js";
 import { registerOperationsTools } from "./tools/operations.js";
 import { registerSigscheTools } from "./tools/sigsche.js";
 import { registerSigscheLocalTools } from "./tools/sigsche-local.js";
+import { registerSigscheAccountTools } from "./tools/sigsche-accounts.js";
 import { localOnly, mountSigsche } from "./sigsche/http.js";
 
 const VERSION = "2.0.0";
@@ -50,6 +51,7 @@ function buildServer(): McpServer {
   registerOperationsTools(server);
   registerSigscheTools(server);
   registerSigscheLocalTools(server);
+  registerSigscheAccountTools(server);
 
   return server;
 }
