@@ -327,7 +327,7 @@ function drawCard(cv,p,fmt,ground,scale){
  const ss=wide?24:tall?40:31;ctx.font=F.body(500,ss);ctx.fillStyle=P.mute;const sl=wrap(ctx,p.sub||'',subW),sm=wide?1:tall?3:2,keep=sl.slice(0,sm);if(sl.length>sm)keep[sm-1]=ell(ctx,sl.slice(sm-1).join(' '),subW);keep.forEach(l=>{ctx.fillText(ell(ctx,l,subW),pad,y);y+=ss*1.35});
  const qx=W-pad-qs,qy=wide?(H-qs)/2+12:bottom-oneS*1.9-qs;const LK=link(p,'card');if(LK)drawQR(ctx,LK,qx,qy,qs,P);
  const ly=bottom-oneS*1.9-(wide?0:10),lw=wide?W-pad*3-qs:qx-pad*1.5;
- ctx.font=F.body(600,wide?17:tall?25:21);ctx.fillStyle=P.mute;ctx.fillText(ell(ctx,GROUP.has(p.b)?ROLE[p.b]:'Flat monthly from R6,916 · VAT incl',lw),pad,ly-(wide?32:tall?50:42));
+ ctx.font=F.body(600,wide?17:tall?25:21);ctx.fillStyle=P.mute;ctx.fillText(ell(ctx,GROUP.has(p.b)?ROLE[p.b]:p.b==='locare'?'Flat monthly from R6,916 · VAT incl':'',lw),pad,ly-(wide?32:tall?50:42));
  ctx.font=F.mono(500,wide?24:tall?34:30);ctx.fillStyle=P.fg;ctx.fillText(ell(ctx,GROUP.has(p.b)?(SITEOF[p.b]||''):'locare.co.za/demo',lw),pad,ly);
  drawRule(ctx,pad,W-pad-oneS*3.8,bottom-oneS*0.36,oneS/24,P);drawOne(ctx,W-pad,bottom,oneS,P);
 }
