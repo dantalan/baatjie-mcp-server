@@ -26,3 +26,38 @@ desktop.ini
 
 # sigsche local data: signals, leads, saved cards, platform tokens, browser profile
 data/
+
+# Installers, archives, media and binaries kept in the repo folder (not source)
+*.exe
+*.msi
+*.msix
+*.winmd
+*.bundle
+*.skill
+*.zip
+*.mp4
+*.mov
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.xlsx
+*.docx
+
+# Personal and people data kept in the repo folder
+*roster*.csv
+*roster*.xlsx
+*Roster*.csv
+NUMSA_*.xlsx
+Copy of *.xlsx
+
+# Generated scan output and backups
+_sigsche-build/hawk-*
+_sigsche-build/index.before-*.html
+
+# Tool caches and scratch folders
+.codex/
+.mcp.json
+_to_delete/
+_probe.ps1
