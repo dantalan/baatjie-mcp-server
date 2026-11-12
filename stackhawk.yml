@@ -1,0 +1,19 @@
+app:
+  applicationId: ${APP_ID:c6fe7cd3-a496-4d53-ae7f-177d4eb9b5a4}
+  env: ${APP_ENV:Development}
+  host: ${APP_HOST:http://localhost:8641}
+  # Drop the JavaScript template fragments the spider mistook for links
+  # (for example '+esc(home)+'). Each entry is a regex matched against the URL.
+  excludePaths:
+    - "'"
+
+hawk:
+  spider:
+    base: true
+    seedPaths:
+      - /health
+      - /catalog.json
+      - /api/state
+      - /api/platforms
+      - /api/accounts
+      - /api/godsview

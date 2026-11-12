@@ -29,6 +29,7 @@ export interface Account {
   id: string;
   pid: string;
   platform: string;
+  email: string;
   handle: string;
   label: string;
   brand: string;
@@ -49,6 +50,16 @@ function bag(s: SigscheState): Record<string, Doc> {
 /** A handle, a page link, or '@you@instance'. One line, no empties. */
 export function cleanHandle(v: unknown): string {
   return (typeof v === "string" ? v : "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 120);
+}
+/**
+ * The email an account signs in with. Lower-cased; empty is allowed (no email
+ * saved). Passwords are never stored here: signing in happens in the browser.
+ */
+export function cleanEmail(v: unknown): string {
+  const e = (typeof v === "string" ? v : "").trim().toLowerCase().slice(0, 120);
+  if (!e) return "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error(`'${e}' is not an email address.`);
+  return e;
 }
 /**
  * The same account typed two ways: '@locare.co.za' and
@@ -82,6 +93,7 @@ export function accounts(s: SigscheState, pid?: string): Account[] {
       id,
       pid: p,
       platform: pl.name,
+      email: str(rec["email"]),
       handle: str(rec["handle"]),
       label: str(rec["label"]),
       brand: str(rec["brand"]),
@@ -99,6 +111,7 @@ export function accounts(s: SigscheState, pid?: string): Account[] {
       id: `${pl.id}:0`,
       pid: pl.id,
       platform: pl.name,
+      email: "",
       handle: h,
       label: "saved before v13.3",
       brand: "",
@@ -168,13 +181,14 @@ function syncPlat(s: SigscheState, pid: string, saved: Record<string, Doc>): voi
 function keepLegacy(s: SigscheState, next: Record<string, Doc>): void {
   for (const a of accounts(s)) {
     if (!a.legacy || next[a.id]) continue;
-    next[a.id] = { pid: a.pid, handle: a.handle, label: "", brand: "", session: "main", on: true, primary: true, at: Date.now() };
+    next[a.id] = { pid: a.pid, email: "", handle: a.handle, label: "", brand: "", session: "main", on: true, primary: true, at: Date.now() };
   }
 }
 
 export interface AccountPatch {
   id?: string | undefined;
   platform?: string | undefined;
+  email?: string | undefined;
   handle?: string | undefined;
   label?: string | undefined;
   brand?: string | undefined;
@@ -198,20 +212,27 @@ export function saveAccount(patch: AccountPatch): Account {
       const pl = platformOf(pid);
       if (!pl) throw new Error(`Unknown platform '${pid}'. Call baatjie_sigsche_platforms for the 33 ids.`);
       const handle = cleanHandle(patch.handle);
-      if (!handle) throw new Error("A handle is required: '@name', a page link, or '@you@instance' for Mastodon.");
+      const email = cleanEmail(patch.email);
+      if (!handle && !email)
+        throw new Error("Give an email, a handle, or both. A handle is '@name', a page link, or '@you@instance' for Mastodon.");
       const mine = Object.entries(next).filter(([, r]) => str(r["pid"]) === pid);
       if (mine.length >= ACCT_MAX) throw new Error(`${pl.name} already holds ${ACCT_MAX} handles, which is the limit.`);
-      if (mine.some(([, r]) => same(str(r["handle"]), handle))) throw new Error(`${handle} is already saved on ${pl.name}.`);
+      if (handle && mine.some(([, r]) => same(str(r["handle"]), handle))) throw new Error(`${handle} is already saved on ${pl.name}.`);
       id = `${pid}:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-      rec = { pid, handle, label: "", brand: "", session: "main", on: true, primary: mine.length === 0, at: Date.now() };
+      rec = { pid, email, handle, label: "", brand: "", session: "main", on: true, primary: mine.length === 0, at: Date.now() };
     }
     if (patch.handle !== undefined && patch.id) {
       const h = cleanHandle(patch.handle);
-      if (!h) throw new Error("A handle cannot be emptied. Remove the account instead.");
+      if (!h && !str(rec["email"])) throw new Error("An account needs an email or a handle. Remove the account instead.");
       const pid = str(rec["pid"]);
-      if (Object.entries(next).some(([k, r]) => k !== id && str(r["pid"]) === pid && same(str(r["handle"]), h)))
+      if (h && Object.entries(next).some(([k, r]) => k !== id && str(r["pid"]) === pid && same(str(r["handle"]), h)))
         throw new Error(`${h} is already saved on that platform.`);
       rec["handle"] = h;
+    }
+    if (patch.email !== undefined && patch.id) {
+      const e = cleanEmail(patch.email);
+      if (!e && !str(rec["handle"])) throw new Error("An account needs an email or a handle. Remove the account instead.");
+      rec["email"] = e;
     }
     if (patch.label !== undefined) rec["label"] = patch.label.replace(/[\r\n\t]+/g, " ").trim().slice(0, 40);
     if (patch.brand !== undefined) {

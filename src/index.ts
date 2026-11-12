@@ -68,9 +68,42 @@ function checkEnv(): void {
   }
 }
 
+/**
+ * Security headers for every response. Scripts are external files only (no inline script),
+ * so script-src has no 'unsafe-inline'. Inline style stays allowed; every other source is an exact host.
+ * frame-ancestors and form-action are set explicitly because they do not fall back to default-src.
+ */
+function setSecurityHeaders(res: express.Response): void {
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+}
+
 /** The dashboard, its local API and the MCP endpoint on one localhost port. */
 function startHttp(): Promise<boolean> {
   const app = express();
+  app.disable("x-powered-by");
+  // Security headers on every response. Scripts are external only; inline style stays;
+  // every other source is an exact host, never a wildcard.
+  app.use((_req, res, next) => {
+    setSecurityHeaders(res);
+    next();
+  });
   app.use(localOnly);
   app.use(express.json({ limit: "24mb" }));
 
@@ -93,6 +126,18 @@ function startHttp(): Promise<boolean> {
     const server = buildServer();
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
+  });
+
+  // Express's own 404 and error pages set a CSP of default-src 'none' that would
+  // replace ours, so both are answered here with the full set of headers.
+  app.use((_req, res) => {
+    setSecurityHeaders(res);
+    res.status(404).type("text/plain").send("Not found");
+  });
+  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("request failed:", err instanceof Error ? err.message : String(err));
+    setSecurityHeaders(res);
+    if (!res.headersSent) res.status(500).type("text/plain").send("Server error");
   });
 
   const port = Number.parseInt(process.env["PORT"] ?? "8641", 10);

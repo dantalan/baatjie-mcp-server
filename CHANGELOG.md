@@ -2,6 +2,18 @@
 
 One entry per version, newest first. Each version is one commit on the `sigsche-v13` branch.
 
+## v13.5 · 12.11.2026 · email per account
+
+- Every account can hold an email it signs in with, a username, or both. Give
+  at least one. An email is lower-cased and must look like an address.
+- Dashboard: an email field on the add form, and inline edits on every saved
+  account (email, username, what it is, business). Clearing a field is refused
+  when it would leave the account with neither an email nor a username.
+- MCP: `baatjie_sigsche_account_save` takes `email`; `baatjie_sigsche_accounts`
+  shows an email column.
+- Duplicate checks still apply to usernames only. No passwords are stored.
+- Test: `_sigsche-build/test-13.5.mjs`, 20 of 20.
+
 ## v13.4 · 12.11.2026 · per-session browsers
 
 - Each sign-in session now has its own Chrome profile folder and remote-debugging

@@ -60,6 +60,18 @@ export function mountSigsche(app: Express): void {
   app.get("/", (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "index.html"));
   });
+  app.get("/app.js", (_req, res) => {
+    res.type("application/javascript");
+    res.sendFile(path.join(PUBLIC_DIR, "app.js"));
+  });
+  app.get("/vendor/qrcode-generator-1.4.4.min.js", (_req, res) => {
+    res.type("application/javascript");
+    res.sendFile(path.join(PUBLIC_DIR, "vendor", "qrcode-generator-1.4.4.min.js"));
+  });
+  app.get("/vendor/jszip-3.10.1.min.js", (_req, res) => {
+    res.type("application/javascript");
+    res.sendFile(path.join(PUBLIC_DIR, "vendor", "jszip-3.10.1.min.js"));
+  });
   app.get("/catalog.json", (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "catalog.json"));
   });

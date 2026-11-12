@@ -68,10 +68,11 @@ Returns: { "total","platforms_used","limit","accounts":[{ "id","pid","platform",
         const used = new Set(list.map((a) => a.pid)).size;
         const logins = await accountLogins().catch(() => ({} as Record<string, string>));
         const md = table(
-          ["platform", "handle", "label", "brand", "primary", "on", "session", "signed in", "id"],
+          ["platform", "email", "handle", "label", "brand", "primary", "on", "session", "signed in", "id"],
           list.map((a) => [
             a.pid,
-            a.handle,
+            a.email || "–",
+            a.handle || "–",
             a.label || "–",
             a.brand || "any",
             a.primary ? "yes" : "",
@@ -100,12 +101,13 @@ Returns: { "total","platforms_used","limit","accounts":[{ "id","pid","platform",
       title: "Add or Change a Handle on a Platform",
       description: `Add a second, third or further handle to a platform, or change one that is already saved.
 
-Pass platform and handle to add one. Pass id (from baatjie_sigsche_accounts) with the fields to change to edit one. The first handle on a platform becomes its primary automatically.
+Pass platform with an email, a handle, or both to add one. Pass id (from baatjie_sigsche_accounts) with the fields to change to edit one. The first account on a platform becomes its primary automatically. Passwords are never stored: Baatjie signs in himself in the sigsche browser.
 
 Args:
-  - id (string, optional): Existing handle id; leave out to add a new one
+  - id (string, optional): Existing account id; leave out to add a new one
   - platform (string, optional): Platform id, required when adding
-  - handle (string, optional): '@name', a page link, or '@you@instance' for Mastodon
+  - email (string, optional): The email this account signs in with, e.g. 'hello@locare.co.za'. Empty clears it.
+  - handle (string, optional): The username: '@name', a page link, or '@you@instance' for Mastodon
   - label (string, optional): What this account is, e.g. 'dantalan main', 'locare page'
   - brand (string, optional): Brand key this handle posts for; '' for any brand
   - session (string, optional): Which sigsche browser profile this handle signs in on (default 'main')
@@ -118,6 +120,7 @@ Note: each session name is its own browser profile, and one platform can be sign
       inputSchema: {
         id: z.string().max(80).optional(),
         platform: z.string().optional(),
+        email: z.string().max(120).optional(),
         handle: z.string().max(120).optional(),
         label: z.string().max(40).optional(),
         brand: z.string().max(24).optional(),
@@ -134,6 +137,7 @@ Note: each session name is its own browser profile, and one platform can be sign
         const a = saveAccount({
           ...(params.id !== undefined ? { id: params.id } : {}),
           ...(params.platform !== undefined ? { platform: params.platform } : {}),
+          ...(params.email !== undefined ? { email: params.email } : {}),
           ...(params.handle !== undefined ? { handle: params.handle } : {}),
           ...(params.label !== undefined ? { label: params.label } : {}),
           ...(params.brand !== undefined ? { brand: params.brand } : {}),
