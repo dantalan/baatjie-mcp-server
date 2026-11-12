@@ -924,6 +924,16 @@ function drawCard(cv,p,fmt,ground,scale){
 function cardBlob(p,fmt,ground){const cv=document.createElement('canvas');drawCard(cv,p,fmt,ground,1);return new Promise(r=>cv.toBlob(r,'image/png'))}
 function cardName(p,fmt){return fname(['card',p.b==='node1'?'nodeone':BR[p.b].ref.replace(/^_/,''),dateOf(p),p.t.replace(':',''),fmt],'png')}
 
+// Studio templates: one supaNOVA card per Taluna moon for a brand, saved to the cards folder.
+window.sigscheStudioTemplate=async function(brand,m,fmt,ground){
+ const T=TMOONS[m];
+ const p={id:'tpl-'+brand+'-m'+(m+1),b:brand,t:'09:00',date:'',k:'template',kicker:'MOON '+(m+1)+' · '+T.name,hook:T.moonName,sub:T.name+' · '+capFirst(T.theme)+'.'};
+ const cv=document.createElement('canvas');drawCard(cv,p,fmt,ground,1);
+ const name=fname(['template',BR[brand].ref.replace(/^_/,''),'moon'+(m+1)+'-'+T.name.toLowerCase(),fmt],'png');
+ const r=await fetch('/api/card',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,data:cv.toDataURL('image/png')})}).then(x=>x.json());
+ return {name,file:r.file||null,ok:!!r.ok};
+};
+
 /* ---------------- render ---------------- */
 let renderT=0;function renderSoon(){cancelAnimationFrame(renderT);renderT=requestAnimationFrame(render)}
 let pending=false;
