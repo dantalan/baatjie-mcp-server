@@ -27,6 +27,9 @@ const VER='v13.5',PRODUCT='sigsche',SITE='sigsche.co.za';
 function fname(parts,ext){return [PRODUCT+'-'+VER].concat(parts).filter(x=>x!=null&&x!=='').map(x=>String(x).replace(/[^\w.\-]+/g,'-').replace(/^-+|-+$/g,'')).join('_')+'.'+ext}
 const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']);
 const SITEOF={sigsche:'sigsche.co.za',zaaka:'zaaka.io'};
+// v13.6: a business with no domain gets a default. Stand-alone brands and locare/sigsche keep their own; sigsche-group brands get <slug>.sigsche.co.za; everything else whitelabels to <slug>.locare.co.za.
+const DOMAIN_STANDALONE=new Set(['zaaka','xnith','associates','budhapets','locare','sigsche']);
+function defaultDomain(k){if(DOMAIN_STANDALONE.has(k)||!/^[a-z0-9]{2,24}$/.test(k))return '';return GROUP.has(k)?k+'.sigsche.co.za':k+'.locare.co.za'}
 const ACT_EXTRA={};
 const STAGES=['New','Messaged','Replied','Demo booked','Pilot','Signed','Lost'];
 const CITIES=['East London','Durban','Pretoria','Cape Town','Other'];
@@ -334,6 +337,80 @@ function drawCard(cv,p,fmt,ground,scale){
 function cardBlob(p,fmt,ground){const cv=document.createElement('canvas');drawCard(cv,p,fmt,ground,1);return new Promise(r=>cv.toBlob(r,'image/png'))}
 function cardName(p,fmt){return fname(['card',p.b==='node1'?'nodeone':BR[p.b].ref.replace(/^_/,''),dateOf(p),p.t.replace(':',''),fmt],'png')}
 
+/* ---------------- video: the caption, one sentence at a time, over the card ---------------- */
+const VIDEO_FMT={video:'story',reel:'story',story:'story',carousel:'square'};
+let videoBusy=false;
+function videoScenes(p){
+ const body=String(p.body||'').replace(/\{link\}/g,'').replace(/\r/g,'');
+ const parts=body.split(/\n\s*\n|(?<=[.!?])\s+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
+ const cta=GROUP.has(p.b)&&SITEOF[p.b]?SITEOF[p.b]:'locare.co.za/demo';
+ return parts.concat([cta]);
+}
+function sceneSeconds(text){const words=text.split(' ').length;return Math.min(9,Math.max(2.5,words*0.42+0.8))}
+function drawScene(ctx,W,H,base,text,i,n,tt,P,p){
+ const a=Math.min(1,tt/0.4),pad=Math.round(W*0.06);
+ ctx.drawImage(base,0,0,W,H);
+ ctx.globalAlpha=a;ctx.textAlign='left';ctx.textBaseline='alphabetic';
+ // Caption sits in a small translucent band in the lower third, so the card stays visible above it.
+ let size=Math.round(W*0.042);ctx.font=F.body(600,size);
+ const inner=W-pad*2-pad*1.2;let lines=wrap(ctx,text,inner);
+ while(lines.length>4&&size>22){size-=2;ctx.font=F.body(600,size);lines=wrap(ctx,text,inner)}
+ if(lines.length>4){lines=lines.slice(0,4);lines[3]=ell(ctx,lines[3],inner)}
+ const lh=Math.round(size*1.3),bandH=lines.length*lh+pad*1.1,bandY=H-bandH-pad*1.6-16;
+ ctx.fillStyle='rgba(0,0,0,.7)';rr(ctx,pad,bandY,W-pad*2,bandH,Math.round(W*0.02));ctx.fill();
+ ctx.fillStyle='#FFFFFF';lines.forEach((l,k)=>ctx.fillText(l,pad+pad*0.6,bandY+pad*0.55+size+k*lh));
+ ctx.font=F.mono(500,Math.round(W*0.02));ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillText(BR[p.b].name.toUpperCase(),pad,pad+Math.round(W*0.02));
+ ctx.fillStyle=P.acc;ctx.fillRect(0,H-16,W*((i+1)/n),16);
+ ctx.globalAlpha=1;
+}
+async function videoBlob(p,fmt,ground,onProgress){
+ if(typeof MediaRecorder==='undefined'||!HTMLCanvasElement.prototype.captureStream)throw new Error('no-recorder');
+ const type=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+ if(!type)throw new Error('no-recorder');
+ const f=FMT[fmt],W=f.w,H=f.h,scenes=videoScenes(p);
+ if(!p.b||!BR[p.b])throw new Error('no-brand');
+ const base=document.createElement('canvas');drawCard(base,p,fmt,ground,1);
+ const P=palette(ground,BR[p.b].color),durs=scenes.map(sceneSeconds),total=durs.reduce((x,y)=>x+y,0)+1;
+ const out=document.createElement('canvas');out.width=W;out.height=H;const ctx=out.getContext('2d');
+ const stream=out.captureStream(30),rec=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:4000000}),chunks=[];
+ rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+ const stopped=new Promise(r=>{rec.onstop=r});
+ rec.start(250);
+ const t0=performance.now();
+ let timer=null;
+ const frame=()=>{
+  const t=(performance.now()-t0)/1000;
+  let acc=0,i=0;while(i<scenes.length-1&&t>=acc+durs[i]){acc+=durs[i];i++}
+  drawScene(ctx,W,H,base,scenes[i],i,scenes.length,Math.max(0,t-acc),P,p);
+  if(onProgress)onProgress(Math.min(1,t/total));
+  if(t>=total&&rec.state!=='inactive'){clearInterval(timer);rec.stop()}
+ };
+ frame();
+ // A timer, not requestAnimationFrame: animation frames stop when the window is in the background, which would stall the recording.
+ timer=setInterval(frame,33);
+ await stopped;
+ clearInterval(timer);
+ stream.getTracks().forEach(tr=>tr.stop());
+ return new Blob(chunks,{type:'video/webm'});
+}
+Object.assign(ACT_EXTRA,{
+ async cmpVideo(el){
+  if(videoBusy)return;
+  const p=cmpItem();
+  if(!p.body){toast('Write the signal first');$('#c-body').focus();return}
+  const fmt=VIDEO_FMT[state.cmp.media]||'story',label=el.textContent;
+  videoBusy=true;el.disabled=true;el.textContent='Making video…';
+  try{
+   const blob=await videoBlob(p,fmt,state.ground,f=>{el.textContent='Making video '+Math.round(f*100)+'%'});
+   await saveFile(fname(['video',p.b,dateOf(p),fmt],'webm'),blob,'video/webm');
+   toast('Video saved. Upload it to the platforms you picked.',4000);
+  }catch(err){
+   const c=err&&err.message;
+   toast(c==='no-recorder'?'This browser cannot record video here. Use Chrome or Edge.':c==='no-brand'?'Pick a brand first.':'Video failed. Try again.',5000);
+  }finally{videoBusy=false;el.disabled=false;el.textContent=label}
+ }
+});
+
 // Studio templates: one supaNOVA card per Taluna moon for a brand, saved to the cards folder.
 window.sigscheStudioTemplate=async function(brand,m,fmt,ground,day){
  const T=TMOONS[m];
@@ -447,7 +524,7 @@ function renderCompose(){
  const tm=$('#c-time');if(!tm.options.length){tm.innerHTML=RHYTHM.map(r=>'<option value="'+r[0]+'">'+r[0]+' · '+esc(r[1])+'</option>').join('');tm.value='08:17'}
  if(!$('#c-date').value)$('#c-date').value=todayISO();
  const tg=$('#c-tags');if(!tg.dataset.touched)tg.value=brandTags(state.cmp.brand);
- $('#c-draft').hidden=!smp;
+ $('#c-draft').hidden=!smp;$('#c-video').hidden=!['video','reel','story','carousel'].includes(state.cmp.media);
  cmpPreview();
 }
 const TPL=[
@@ -871,7 +948,7 @@ const BIZ_ALL=['domain','sector','entity','status','contact','about'];
 const BIZ_STATUS=['Idea','Building','Live','Parked'];
 const SITE0=Object.assign({},SITEOF);
 const BIZ_BUILTIN=new Set(Object.keys(BR));
-function bizRec(k){return Object.assign({domain:SITE0[k]||'',sector:'',entity:'',status:'',contact:'',about:''},(state.settings.biz||{})[k])}
+function bizRec(k){const s=(state.settings.biz||{})[k]||{};return Object.assign({domain:SITE0[k]||defaultDomain(k),sector:'',entity:'',status:'',contact:'',about:''},s,{domain:cleanDomain(s.domain)||SITE0[k]||defaultDomain(k)})}
 function bizOpen(k){const r=bizRec(k);return BIZ_ALL.filter(f=>!String(r[f]||'').trim())}
 function bizKeys(){return BGROUPS.reduce((a,g)=>a.concat(g[1]),[])}
 function bizSet(k){const g=BGROUPS.find(x=>x[1].includes(k));return g?g[0]:'Group'}
@@ -886,6 +963,7 @@ function applyBiz(){
    if(!BGROUPS[2][1].includes(k))BGROUPS[2][1].push(k)}
   if(!BR[k])return;
   const d=cleanDomain(b.domain);if(d)SITEOF[k]=d;else if(SITE0[k])SITEOF[k]=SITE0[k];else delete SITEOF[k]});
+ Object.keys(BR).forEach(k=>{if(!SITEOF[k]){const d=defaultDomain(k);if(d)SITEOF[k]=d}});
 }
 function putBiz(k,patch){const S=state.settings;S.biz=Object.assign({},S.biz,{[k]:Object.assign({},(S.biz||{})[k],patch)});applyBiz();putSettings()}
 function renderBusiness(){
