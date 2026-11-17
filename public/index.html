@@ -270,7 +270,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
         <div class="btns" style="margin:0 0 10px"><button class="btn" data-act="cmpSet" data-v="all">All 33</button><button class="btn" data-act="cmpSet" data-v="on">My active set</button><button class="btn" data-act="cmpSet" data-v="none">None</button></div>
         <div class="bgrid" id="c-plats"></div>
       </div>
-      <form class="card" id="c-form" autocomplete="off">
+      <form class="card" id="c-form" autocomplete="off"><input type="hidden" name="csrf_token" value="">
         <h3>Signal</h3>
         <label class="lbl" for="c-hook" style="margin-top:0">Card headline (optional)</label><input class="ctrl" id="c-hook" maxlength="70" placeholder="Left empty, the card uses your first line">
         <label class="lbl" for="c-body">Message</label><textarea class="ctrl" id="c-body" placeholder="Write the signal. The demo link and tags are added for you."></textarea>
@@ -314,7 +314,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
   <p class="sub">A platform can hold more than one account. Add every handle here, say which business each one speaks for, and mark the primary. A handle tied to a business takes that business's posts; a handle tied to none takes anything that has no handle of its own. Switched off means it receives nothing. No passwords are kept here, ever.</p>
   <div class="kpis" id="acct-kpis"></div>
   <div class="card"><h3>Add a handle</h3>
-    <form id="acct-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+    <form id="acct-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center"><input type="hidden" name="csrf_token" value="">
       <select class="ctrl" id="a-plat" aria-label="Platform" style="min-width:150px"></select>
       <input class="ctrl" id="a-email" type="email" maxlength="120" aria-label="Email this account signs in with" placeholder="email (optional)" style="flex:1;min-width:170px">
       <input class="ctrl" id="a-handle" maxlength="120" aria-label="Username or page link" placeholder="@username or page link" style="flex:1;min-width:170px">
@@ -351,7 +351,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
   <div class="chips" id="biz-filter"></div>
   <div class="pgrid" id="biz-grid"></div>
   <div class="card" style="margin-top:14px"><h3>Add a business</h3>
-    <form id="biz-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+    <form id="biz-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center"><input type="hidden" name="csrf_token" value="">
       <input class="ctrl" id="b-name" maxlength="40" aria-label="Business name" placeholder="Business name" style="flex:1;min-width:180px">
       <input type="color" id="b-color" value="#7DA2FF" aria-label="Brand colour" style="width:44px;height:38px;padding:0;border:0;background:none">
       <button class="btn green" type="submit">Add</button>
@@ -453,7 +453,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
     </table></div>
   </div>
   <div class="grid2">
-      <form class="card gold" id="lead-form" autocomplete="off">
+      <form class="card gold" id="lead-form" autocomplete="off"><input type="hidden" name="csrf_token" value="">
         <h3>Add an agency</h3>
         <label class="lbl" for="l-agency">Agency *</label><input class="ctrl" id="l-agency" required maxlength="80">
         <div class="fgrid">
@@ -559,7 +559,7 @@ td .ctrl{padding:6px 8px;font-size:11.5px}
     <div class="card"><h3>File names</h3><div class="list" id="fn-list"></div></div>
   </div>
   <div class="grid2" style="margin-top:14px">
-    <form class="card" id="settings-form" autocomplete="off">
+    <form class="card" id="settings-form" autocomplete="off"><input type="hidden" name="csrf_token" value="">
       <h3>Settings</h3>
       <div class="fgrid">
         <div><label class="lbl" for="s-start">Sprint start (day 1)</label><input class="ctrl" id="s-start" type="date"></div>

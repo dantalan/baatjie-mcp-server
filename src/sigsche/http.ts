@@ -3,6 +3,7 @@
  * MCP endpoint. Local only: requests must arrive on localhost.
  */
 
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { Express, NextFunction, Request, Response } from "express";
 import path from "node:path";
 import { openLogin } from "./browser.js";
@@ -56,16 +57,57 @@ function fail(res: Response, error: unknown, status = 400): void {
 }
 const ID = /^[\w.\-:]{1,80}$/;
 
+const CSRF_COOKIE = "sigsche_csrf";
+const CSRF_SHAPE = /^[0-9a-f]{64}$/;
+
+/** The session token already in this browser's cookie, or null when there is none. */
+function cookieToken(req: Request): string | null {
+  const match = new RegExp(`(?:^|;\\s*)${CSRF_COOKIE}=([0-9a-f]{64})(?:;|$)`).exec(req.headers.cookie ?? "");
+  const token = match?.[1];
+  return token && CSRF_SHAPE.test(token) ? token : null;
+}
+
+/**
+ * Every response carries this browser's session token in an HttpOnly, SameSite=Strict cookie.
+ * The page reads the same value from /api/csrf and sends it back on each API write. A cross-site
+ * page can neither read it (same-origin policy) nor send the cookie (SameSite=Strict).
+ */
+function ensureSessionCookie(req: Request, res: Response, next: NextFunction): void {
+  let token = cookieToken(req);
+  if (!token) {
+    token = randomBytes(32).toString("hex");
+    res.append("Set-Cookie", `${CSRF_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict`);
+  }
+  res.locals["csrf"] = token;
+  next();
+}
+
+/** True when the X-CSRF-Token header equals this browser's session cookie. */
+function csrfMatches(req: Request): boolean {
+  const cookie = cookieToken(req);
+  const sent = req.headers["x-csrf-token"];
+  if (!cookie || typeof sent !== "string" || sent.length !== cookie.length) return false;
+  return timingSafeEqual(Buffer.from(sent), Buffer.from(cookie));
+}
+
 export function mountSigsche(app: Express): void {
+  app.use(ensureSessionCookie);
   // Anti-CSRF: a cross-site HTML form can only send form or text content types, and a
   // cross-site JSON request needs a CORS preflight this server never allows. So every API
   // write must be JSON. A body-less DELETE is also preflighted, so it is allowed as-is.
   app.use("/api", (req, res, next) => {
     if (req.method === "GET" || req.method === "HEAD") return next();
     const type = req.headers["content-type"];
-    if (req.method === "DELETE" && !type) return next();
-    if (type && /^application\/json\b/i.test(type)) return next();
-    res.status(415).json({ error: "API writes must be sent as application/json." });
+    const jsonOk = (req.method === "DELETE" && !type) || Boolean(type && /^application\/json\b/i.test(type));
+    if (!jsonOk) {
+      res.status(415).json({ error: "API writes must be sent as application/json." });
+      return;
+    }
+    if (!csrfMatches(req)) {
+      res.status(403).json({ error: "Missing or wrong session token. Reload the page." });
+      return;
+    }
+    next();
   });
   app.get("/", (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "index.html"));
@@ -84,6 +126,11 @@ export function mountSigsche(app: Express): void {
   });
   app.get("/catalog.json", (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "catalog.json"));
+  });
+
+  /** This browser's session token, which the page sends back as X-CSRF-Token on every API write. */
+  app.get("/api/csrf", (_req, res) => {
+    res.json({ token: res.locals["csrf"] });
   });
 
   app.get("/api/state", (_req, res) => {

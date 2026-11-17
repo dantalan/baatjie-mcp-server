@@ -1,5 +1,26 @@
 (function(){
 'use strict';
+/* ---------------- session token ----------------
+   Every write to /api carries this browser's session token in X-CSRF-Token. The token is read
+   once from /api/csrf and copied into the hidden csrf_token field of every form. */
+let CSRF='';
+const nativeFetch=window.fetch.bind(window);
+const csrfReady=Promise.all([
+  nativeFetch('/api/csrf').then(r=>r.json()).then(j=>{CSRF=j.token||''}),
+  new Promise(res=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',res):res())
+]).then(()=>{document.querySelectorAll('form input[name="csrf_token"]').forEach(i=>{i.value=CSRF})}).catch(()=>{});
+window.fetch=async function(input,init){
+  const raw=typeof input==='string'?input:(input instanceof Request?input.url:String(input));
+  const u=new URL(raw,location.href);
+  const method=((init&&init.method)||(input instanceof Request?input.method:'GET')).toUpperCase();
+  if(method!=='GET'&&method!=='HEAD'&&u.origin===location.origin&&u.pathname.startsWith('/api/')){
+    await csrfReady;
+    const headers=new Headers((init&&init.headers)||(input instanceof Request?input.headers:undefined)||{});
+    headers.set('X-CSRF-Token',CSRF);
+    init=Object.assign({},init,{headers});
+  }
+  return nativeFetch(input,init);
+};
 /* ---------------- helpers ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

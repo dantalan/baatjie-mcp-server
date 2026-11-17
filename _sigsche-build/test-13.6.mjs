@@ -49,7 +49,7 @@ const send = async (method, url, headers = {}, body) => {
 }
 {
   const r = await send("PUT", "/api/doc/nocollection/none", { "content-type": "application/json; charset=utf-8" }, "{}");
-  ok("JSON with charset passes the check (route answers 400 for a bad collection)", r.status === 400, `got ${r.status}`);
+  ok("JSON with charset but no session token is refused (403; see test-13.7)", r.status === 403, `got ${r.status}`);
 }
 
 // 3. Body-less DELETE stays allowed (a cross-site DELETE needs a preflight, which we never allow)
