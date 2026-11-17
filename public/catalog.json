@@ -1,0 +1,929 @@
+{
+ "product": "sigsche",
+ "site": "sigsche.co.za",
+ "version": "v13.5",
+ "brands": [
+  {
+   "key": "locare",
+   "name": "_locare",
+   "ref": "_locare",
+   "color": "#1C8EB8",
+   "role": "property OS · master",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "tanos",
+   "name": "_tanos",
+   "ref": "_tanos",
+   "color": "#FF6B6B",
+   "role": "tenant app",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "baatjie",
+   "name": "_baatjie",
+   "ref": "_baatjie",
+   "color": "#4169E1",
+   "role": "the landlord",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "node1",
+   "name": "_node one",
+   "ref": "_46saintjames",
+   "color": "#FFC93C",
+   "role": "proof node",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "talandan",
+   "name": "_talandan",
+   "ref": "_talandan",
+   "color": "#E0302A",
+   "role": "land",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "dantalan",
+   "name": "_dantalan",
+   "ref": "_dantalan",
+   "color": "#FF8C1A",
+   "role": "signal",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "taluna",
+   "name": "_taluna",
+   "ref": "_taluna",
+   "color": "#2E9E4F",
+   "role": "true time",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "unuta",
+   "name": "_unuta media",
+   "ref": "_unuta",
+   "color": "#D0466A",
+   "role": "broadcast",
+   "group": false,
+   "site": "",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "sigsche",
+   "name": "_sigsche",
+   "ref": "_sigsche",
+   "color": "#F2C200",
+   "role": "rectro tec lab · dePin central",
+   "group": true,
+   "site": "sigsche.co.za",
+   "set": "Ecosystem"
+  },
+  {
+   "key": "mastandie",
+   "name": "_ma'standie",
+   "ref": "_mastandie",
+   "color": "#F59E0B",
+   "role": "township",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "onestandie",
+   "name": "_one'standie",
+   "ref": "_onestandie",
+   "color": "#C0A060",
+   "role": "premium",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "backopposite",
+   "name": "_backopposite",
+   "ref": "_backopposite",
+   "color": "#8B8DF5",
+   "role": "backyard",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "mkaya",
+   "name": "_m'kaya",
+   "ref": "_mkaya",
+   "color": "#10B981",
+   "role": "diaspora",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "stoeplife",
+   "name": "_stoeplife",
+   "ref": "_stoeplife",
+   "color": "#F97316",
+   "role": "young pro",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "erfwerk",
+   "name": "_erfwerk",
+   "ref": "_erfwerk",
+   "color": "#B8B0A6",
+   "role": "working landlords",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "yardstate",
+   "name": "_yardstate",
+   "ref": "_yardstate",
+   "color": "#EC4899",
+   "role": "urban",
+   "group": false,
+   "site": "",
+   "set": "White-labels"
+  },
+  {
+   "key": "covestos",
+   "name": "_coVestOS",
+   "ref": "_covestos",
+   "color": "#F2C200",
+   "role": "the bank",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "associates",
+   "name": "_the associat8s",
+   "ref": "_associat8s",
+   "color": "#B8C4D6",
+   "role": "engineering think tank",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "supanova",
+   "name": "_supaNOVA",
+   "ref": "_supanova",
+   "color": "#7DA2FF",
+   "role": "card studio · ONE.",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "daqua",
+   "name": "_daqua | taqua",
+   "ref": "_daqua",
+   "color": "#38BDF8",
+   "role": "training institute",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "mixmatch",
+   "name": "_mix8match",
+   "ref": "_mix8match",
+   "color": "#FF5C8A",
+   "role": "fruit & veg · everything R13",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "remotemom",
+   "name": "_remotemom",
+   "ref": "_remotemom",
+   "color": "#F0607A",
+   "role": "remotemom",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "xnith",
+   "name": "_xnith",
+   "ref": "_xnith",
+   "color": "#A7ACBD",
+   "role": "xnith",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "anchor",
+   "name": "_anchor alliance",
+   "ref": "_anchoralliance",
+   "color": "#5EEAD4",
+   "role": "property management · since 2009",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  },
+  {
+   "key": "zaaka",
+   "name": "_zaaka.io",
+   "ref": "_zaaka",
+   "color": "#9FE870",
+   "role": "zaaka.io",
+   "group": true,
+   "site": "zaaka.io",
+   "set": "Group"
+  },
+  {
+   "key": "budhapets",
+   "name": "_budha pets",
+   "ref": "_budhapets",
+   "color": "#F4A261",
+   "role": "budha pets",
+   "group": true,
+   "site": "",
+   "set": "Group"
+  }
+ ],
+ "platforms": [
+  {
+   "id": "instagram",
+   "name": "Instagram",
+   "group": "social",
+   "mode": "open",
+   "url": "https://www.instagram.com/"
+  },
+  {
+   "id": "facebook",
+   "name": "Facebook Page",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://www.facebook.com/"
+  },
+  {
+   "id": "threads",
+   "name": "Threads",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://www.threads.net/"
+  },
+  {
+   "id": "twitter",
+   "name": "X / Twitter",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://x.com/"
+  },
+  {
+   "id": "tiktok",
+   "name": "TikTok",
+   "group": "video",
+   "mode": "open",
+   "url": "https://www.tiktok.com/upload"
+  },
+  {
+   "id": "youtube",
+   "name": "YouTube",
+   "group": "video",
+   "mode": "open",
+   "url": "https://studio.youtube.com/"
+  },
+  {
+   "id": "linkedin",
+   "name": "LinkedIn",
+   "group": "professional",
+   "mode": "intent",
+   "url": "https://www.linkedin.com/"
+  },
+  {
+   "id": "whatsapp",
+   "name": "WhatsApp",
+   "group": "messaging",
+   "mode": "intent",
+   "url": "https://web.whatsapp.com/"
+  },
+  {
+   "id": "telegram",
+   "name": "Telegram",
+   "group": "messaging",
+   "mode": "intent",
+   "url": "https://web.telegram.org/"
+  },
+  {
+   "id": "pinterest",
+   "name": "Pinterest",
+   "group": "visual",
+   "mode": "intent",
+   "url": "https://www.pinterest.com/"
+  },
+  {
+   "id": "linkedin_co",
+   "name": "LinkedIn Company",
+   "group": "professional",
+   "mode": "intent",
+   "url": "https://www.linkedin.com/"
+  },
+  {
+   "id": "discord",
+   "name": "Discord",
+   "group": "messaging",
+   "mode": "open",
+   "url": "https://discord.com/channels/@me"
+  },
+  {
+   "id": "reddit",
+   "name": "Reddit",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://www.reddit.com/"
+  },
+  {
+   "id": "substack",
+   "name": "Substack",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://substack.com/home"
+  },
+  {
+   "id": "medium",
+   "name": "Medium",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://medium.com/new-story"
+  },
+  {
+   "id": "spotify",
+   "name": "Spotify",
+   "group": "audio",
+   "mode": "open",
+   "url": "https://creators.spotify.com/"
+  },
+  {
+   "id": "behance",
+   "name": "Behance",
+   "group": "visual",
+   "mode": "open",
+   "url": "https://www.behance.net/"
+  },
+  {
+   "id": "linktree",
+   "name": "Linktree",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://linktr.ee/admin"
+  },
+  {
+   "id": "bluesky",
+   "name": "Bluesky",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://bsky.app/"
+  },
+  {
+   "id": "mastodon",
+   "name": "Mastodon",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://joinmastodon.org/"
+  },
+  {
+   "id": "snapchat",
+   "name": "Snapchat",
+   "group": "visual",
+   "mode": "open",
+   "url": "https://web.snapchat.com/"
+  },
+  {
+   "id": "soundcloud",
+   "name": "SoundCloud",
+   "group": "audio",
+   "mode": "open",
+   "url": "https://soundcloud.com/upload"
+  },
+  {
+   "id": "github",
+   "name": "GitHub",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://github.com/"
+  },
+  {
+   "id": "vsco",
+   "name": "VSCO",
+   "group": "visual",
+   "mode": "open",
+   "url": "https://vsco.co/"
+  },
+  {
+   "id": "tumblr",
+   "name": "Tumblr",
+   "group": "social",
+   "mode": "intent",
+   "url": "https://www.tumblr.com/"
+  },
+  {
+   "id": "patreon",
+   "name": "Patreon",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://www.patreon.com/"
+  },
+  {
+   "id": "kofi",
+   "name": "Ko-fi",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://ko-fi.com/"
+  },
+  {
+   "id": "clubhouse",
+   "name": "Clubhouse",
+   "group": "audio",
+   "mode": "app",
+   "url": ""
+  },
+  {
+   "id": "applepod",
+   "name": "Apple Podcasts",
+   "group": "audio",
+   "mode": "open",
+   "url": "https://podcastsconnect.apple.com/"
+  },
+  {
+   "id": "lemon8",
+   "name": "Lemon8",
+   "group": "visual",
+   "mode": "open",
+   "url": "https://www.lemon8-app.com/"
+  },
+  {
+   "id": "bereal",
+   "name": "BeReal",
+   "group": "visual",
+   "mode": "app",
+   "url": ""
+  },
+  {
+   "id": "gbp",
+   "name": "Google Business Profile",
+   "group": "professional",
+   "mode": "open",
+   "url": "https://business.google.com/"
+  },
+  {
+   "id": "dribbble",
+   "name": "Dribbble",
+   "group": "visual",
+   "mode": "open",
+   "url": "https://dribbble.com/"
+  }
+ ],
+ "defaultOn": [
+  "instagram",
+  "facebook",
+  "threads",
+  "twitter",
+  "linkedin",
+  "whatsapp",
+  "tiktok"
+ ],
+ "sprint": [
+  {
+   "id": "d1-0817",
+   "d": 0,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "One system. The whole rental lifecycle.",
+   "sub": "Leasing, rent collection, trust accounting and owner payouts, under your brand.",
+   "body": "Listing to owner statement in one place: leasing, rent collection, trust accounting, owner payouts, maintenance, and apps for tenants and landlords.\n\nAll under your brand and your domain. Tenants never see Locare.\n\nSee it: {link}"
+  },
+  {
+   "id": "d1-1212",
+   "d": 0,
+   "t": "12:12",
+   "b": "node1",
+   "k": "proof",
+   "hook": "11 units. Zero chasing.",
+   "sub": "Node 1 is where _locare was built and tested, on a real property.",
+   "body": "Node 1 is where _locare was built: 11 units, run end to end on the same system we sell. Every feature earned its place by fixing a real problem on a real property.\n\nDemo: {link}"
+  },
+  {
+   "id": "d1-1919",
+   "d": 0,
+   "t": "19:19",
+   "b": "baatjie",
+   "k": "anime",
+   "hook": "Faki'sandla or vokoff.",
+   "sub": "Episode 1 of _baatjie: Node One. The tenant meets a ledger that never forgets.",
+   "body": "_baatjie: Node One, episode 1.\n\nA tenant who won't pay meets a ledger that doesn't forget. The system wins.\n\nThe demo the episode is built on: {link}"
+  },
+  {
+   "id": "d2-0817",
+   "d": 1,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "Flat fee. No per-unit maths.",
+   "sub": "Starter R6,916 · Growth R14,490 · Scale R25,415 a month, VAT incl.",
+   "body": "Starter R6,916/month for 70–199 units.\nGrowth R14,490/month for 200–499.\nScale R25,415/month for 500+.\nVAT included.\n\nYour fee follows your portfolio band, not every new door.\n\n{link}"
+  },
+  {
+   "id": "d2-1111",
+   "d": 1,
+   "t": "11:11",
+   "b": "baatjie",
+   "k": "anime",
+   "hook": "11|11. The portal opens.",
+   "sub": "Episode 5: the house where it all started.",
+   "body": "11|11. The portal opens.\n\nEpisode 5 of _baatjie: Node One is the montage of the house where it all started: 11 units, one system, no more WhatsApp debt collection.\n\n{link}"
+  },
+  {
+   "id": "d2-1212",
+   "d": 1,
+   "t": "12:12",
+   "b": "tanos",
+   "k": "tenant",
+   "hook": "Tenants onboard in 90 seconds.",
+   "sub": "Apply, sign, pay and log maintenance from one app.",
+   "body": "_tanos is the tenant side of _locare. Tenants apply, sign, pay and log maintenance from one app.\n\nLess admin for your team, fewer calls for you.\n\n{link}"
+  },
+  {
+   "id": "d2-1919",
+   "d": 1,
+   "t": "19:19",
+   "b": "mastandie",
+   "k": "white",
+   "hook": "Township rentals deserve real systems.",
+   "sub": "Proper leases, online rent, receipts tenants trust.",
+   "body": "_ma'standie runs on _locare: proper leases, online rent and receipts tenants can trust.\n\nBuilt for the landlords who keep South Africa housed.\n\n{link}"
+  },
+  {
+   "id": "d3-0817",
+   "d": 2,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "Your brand. Your domain.",
+   "sub": "White-label from Growth up. _locare stays behind the scenes.",
+   "body": "White-label from the Growth plan up: your logo, your colours, your domain and your own branded rentals site.\n\n_locare stays behind the scenes.\n\n{link}"
+  },
+  {
+   "id": "d3-1212",
+   "d": 2,
+   "t": "12:12",
+   "b": "node1",
+   "k": "proof",
+   "hook": "Proof beats a pitch deck.",
+   "sub": "Rent collected and reconciled on the ledger agencies get.",
+   "body": "Before we sold _locare, we ran it.\n\nNode 1: 11 units, rent collected and reconciled through the same double-entry ledger agencies get.\n\n{link}"
+  },
+  {
+   "id": "d3-1919",
+   "d": 2,
+   "t": "19:19",
+   "b": "unuta",
+   "k": "media",
+   "hook": "Behind the build.",
+   "sub": "How one property became a platform.",
+   "body": "_unuta media is filming how one property became a platform: the problems Node 1 threw at us, and the features that fixed them.\n\n{link}"
+  },
+  {
+   "id": "d4-0817",
+   "d": 3,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "Trust accounting, done right.",
+   "sub": "Owner portal and PPRA-aware trust accounting on Growth.",
+   "body": "Owner portal and PPRA-aware trust accounting come standard on Growth.\n\nEvery rand reconciled to a double-entry ledger. Owner statements without spreadsheets.\n\n{link}"
+  },
+  {
+   "id": "d4-1212",
+   "d": 3,
+   "t": "12:12",
+   "b": "tanos",
+   "k": "tenant",
+   "hook": "Maintenance without the voice notes.",
+   "sub": "Tenants log it with photos. You assign it and close it.",
+   "body": "Tenants log a maintenance ticket in _tanos, with photos. You see it, assign it, close it.\n\nOne record instead of fifty voice notes.\n\n{link}"
+  },
+  {
+   "id": "d4-1919",
+   "d": 3,
+   "t": "19:19",
+   "b": "locare",
+   "k": "partner",
+   "hook": "Refer an agency. Earn 26%, every month.",
+   "sub": "One Growth agency = R3,767 a month for as long as they stay.",
+   "body": "The _locare partner programme pays 26% recurring for as long as the agency you refer stays.\n\nOne Growth agency = R3,767 a month. Partners are vetted (KYC/KYB).\n\nApply: {link}"
+  },
+  {
+   "id": "d5-0817",
+   "d": 4,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "Live in a week.",
+   "sub": "Branding on day one. Data migration is what takes time.",
+   "body": "Branding on day one, then properties, owners and leases. Most agencies are live within a week.\n\nData migration is what takes time, and we don't rush it.\n\n{link}"
+  },
+  {
+   "id": "d5-1212",
+   "d": 4,
+   "t": "12:12",
+   "b": "node1",
+   "k": "proof",
+   "hook": "What 11 units taught us.",
+   "sub": "Every problem _locare solves, we had first.",
+   "body": "Late rent. Lost receipts. Owner statements at midnight.\n\nNode 1 taught us every problem _locare solves. Now it solves them for portfolios of 70 to 500+ units.\n\n{link}"
+  },
+  {
+   "id": "d5-1919",
+   "d": 4,
+   "t": "19:19",
+   "b": "stoeplife",
+   "k": "white",
+   "hook": "Renting, minus the runaround.",
+   "sub": "Find it, apply, sign and pay from your phone.",
+   "body": "_stoeplife runs on _locare: find a place, apply online, sign and pay from your phone.\n\nYoung professionals, sorted.\n\n{link}"
+  },
+  {
+   "id": "d6-0817",
+   "d": 5,
+   "t": "08:17",
+   "b": "baatjie",
+   "k": "anime",
+   "hook": "Imali phambili.",
+   "sub": "Episode 4: money first, and nobody argues about who paid what.",
+   "body": "Money first.\n\nEpisode 4 of _baatjie: Node One, where the ledger glows and nobody argues about who paid what.\n\n{link}"
+  },
+  {
+   "id": "d6-1212",
+   "d": 5,
+   "t": "12:12",
+   "b": "erfwerk",
+   "k": "white",
+   "hook": "For landlords who work with their hands.",
+   "sub": "Simple leases, rent reminders, records that stand up.",
+   "body": "_erfwerk brings _locare to working landlords: simple leases, rent reminders and records that stand up.\n\nLess paperwork, more weekend.\n\n{link}"
+  },
+  {
+   "id": "d6-1919",
+   "d": 5,
+   "t": "19:19",
+   "b": "mkaya",
+   "k": "white",
+   "hook": "Managing SA property from abroad?",
+   "sub": "Rent in, costs out and every statement, wherever you are.",
+   "body": "_m'kaya runs on _locare. Your owner portal shows rent in, costs out and every statement, wherever you are.\n\nZAR and VAT-ready.\n\n{link}"
+  },
+  {
+   "id": "d7-0817",
+   "d": 6,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "Built for South African rules.",
+   "sub": "POPIA-aligned, ZAR and VAT-ready from day one.",
+   "body": "Tenant and owner data handled to POPIA standards. ZAR and VAT built in.\n\nSouth African software for South African rules.\n\n{link}"
+  },
+  {
+   "id": "d7-1212",
+   "d": 6,
+   "t": "12:12",
+   "b": "locare",
+   "k": "product",
+   "hook": "Reports, API, e-signature.",
+   "sub": "Growth includes them. Scale adds DebiCheck and multi-branch.",
+   "body": "Growth includes reports and API access, documents with e-signature, and a branded rentals site with an application funnel.\n\nScale adds DebiCheck, multi-branch and priority support.\n\n{link}"
+  },
+  {
+   "id": "d7-1919",
+   "d": 6,
+   "t": "19:19",
+   "b": "yardstate",
+   "k": "white",
+   "hook": "Township to suburb. One standard.",
+   "sub": "The same system at every price point.",
+   "body": "_yardstate brings the same _locare system to urban rentals at every price point.\n\nOne standard of service, whatever the address.\n\n{link}"
+  },
+  {
+   "id": "d8-0817",
+   "d": 7,
+   "t": "08:17",
+   "b": "locare",
+   "k": "product",
+   "hook": "See your portfolio on _locare.",
+   "sub": "Leasing, collections, trust and owner statements, in your branding.",
+   "body": "Book a demo and see your own portfolio on _locare: leasing, collections, trust accounting and owner statements, in your branding.\n\n{link}"
+  },
+  {
+   "id": "d8-1212",
+   "d": 7,
+   "t": "12:12",
+   "b": "node1",
+   "k": "proof",
+   "hook": "From one node to many.",
+   "sub": "Starter from 70 units · Growth from 200 · Scale from 500.",
+   "body": "Node 1 proved it. The next nodes are agencies like yours.\n\nStarter from 70 units, Growth from 200, Scale from 500.\n\n{link}"
+  },
+  {
+   "id": "d8-1919",
+   "d": 7,
+   "t": "19:19",
+   "b": "baatjie",
+   "k": "anime",
+   "hook": "s'dla sonke, s'fa sonke.",
+   "sub": "Episode 10: a system that works for everyone in the building.",
+   "body": "Episode 10 of _baatjie: Node One.\n\ns'dla sonke, s'fa sonke. A system that works for landlords, tenants and the people who manage both.\n\n{link}"
+  }
+ ],
+ "moons": [
+  {
+   "name": "GENESIS",
+   "moonName": "Moon of First Light",
+   "theme": "origin, intention, the first breath"
+  },
+  {
+   "name": "ROOT",
+   "moonName": "Moon of Deep Earth",
+   "theme": "grounding, foundation, stillness under pressure"
+  },
+  {
+   "name": "SIGNAL",
+   "moonName": "Moon of the Voice",
+   "theme": "transmission, clarity, the voice that cuts through"
+  },
+  {
+   "name": "VESSEL",
+   "moonName": "Moon of Open Hands",
+   "theme": "receiving, capacity, surrender as strength"
+  },
+  {
+   "name": "FIRE",
+   "moonName": "Moon of Sacred Burning",
+   "theme": "transformation, release, the burn that purifies"
+  },
+  {
+   "name": "SEED",
+   "moonName": "Moon of Invisible Work",
+   "theme": "potential, patience, invisible progress"
+  },
+  {
+   "name": "SOL",
+   "moonName": "Moon of Pure Truth",
+   "theme": "truth, center, the light that cannot lie"
+  },
+  {
+   "name": "HARVEST",
+   "moonName": "Moon of Returning",
+   "theme": "return, reaping, evidence of the unseen work"
+  },
+  {
+   "name": "MIRROR",
+   "moonName": "Moon of Clear Seeing",
+   "theme": "reflection, accountability, seeing clearly"
+  },
+  {
+   "name": "THRESHOLD",
+   "moonName": "Moon of the Crossing",
+   "theme": "transition, doorways, the courage of crossing"
+  },
+  {
+   "name": "STILL",
+   "moonName": "Moon of Sacred Silence",
+   "theme": "silence, depth, knowing without noise"
+  },
+  {
+   "name": "NODE",
+   "moonName": "Moon of Meeting",
+   "theme": "connection, network, ONE meeting ONE"
+  },
+  {
+   "name": "ONE",
+   "moonName": "Moon of All Things",
+   "theme": "completion, unity, the return to everything"
+  }
+ ],
+ "layer": [
+  {
+   "eth": "MUTHE",
+   "brand": "_locare",
+   "anime": "E1 Faki'sandla or Vokoff",
+   "theme": "Money first, automated"
+  },
+  {
+   "eth": "ABRHAM",
+   "brand": "Node 1 · 11 units",
+   "anime": "E5 Node 1 Proof",
+   "theme": "Proof over promise"
+  },
+  {
+   "eth": "YOHANNIS",
+   "brand": "_dantalan",
+   "anime": "E3 Their Mouths Are Moving",
+   "theme": "Pattern recognition"
+  },
+  {
+   "eth": "MISKARAM",
+   "brand": "_baatjie",
+   "anime": "E4 Imali Phambili",
+   "theme": "Blue-collar origin, the blue baatjie"
+  },
+  {
+   "eth": "TEQEMT",
+   "brand": "_talandan",
+   "anime": "E9 Agency Empire",
+   "theme": "Land secured"
+  },
+  {
+   "eth": "HIDAR",
+   "brand": "_tanos",
+   "anime": "E6 _tanos 90 Seconds",
+   "theme": "90-second onboarding"
+  },
+  {
+   "eth": "TAHSAS",
+   "brand": "_taluna",
+   "anime": "13 Moons Calendar",
+   "theme": "True time, 13 moons"
+  },
+  {
+   "eth": "TIR",
+   "brand": "_unuta media",
+   "anime": "E10 s'dla sonke",
+   "theme": "Proof filming, broadcast"
+  },
+  {
+   "eth": "YAKATIT",
+   "brand": "_sigsche",
+   "anime": "Lab Builds the Ledger",
+   "theme": "rectro tec lab, dePin central"
+  },
+  {
+   "eth": "MAGABIT",
+   "brand": "_ma'standie",
+   "anime": "E7 Township vs Premium",
+   "theme": "Township landlord"
+  },
+  {
+   "eth": "MIYAZYA",
+   "brand": "_one'standie",
+   "anime": "Premium boutique",
+   "theme": "Premium living"
+  },
+  {
+   "eth": "GINBOT",
+   "brand": "_m'kaya",
+   "anime": "Diaspora managing via _locare",
+   "theme": "Pan-African"
+  },
+  {
+   "eth": "SANE",
+   "brand": "_yardstate",
+   "anime": "Township to suburb",
+   "theme": "Urban bridge"
+  }
+ ],
+ "stages": [
+  "New",
+  "Messaged",
+  "Replied",
+  "Demo booked",
+  "Pilot",
+  "Signed",
+  "Lost"
+ ],
+ "tagMap": {
+  "locare": "#locare",
+  "node1": "#nodeone",
+  "baatjie": "#nodeone #anime",
+  "tanos": "#tanos",
+  "unuta": "#unutamedia",
+  "mastandie": "#mastandie",
+  "stoeplife": "#stoeplife",
+  "erfwerk": "#erfwerk",
+  "mkaya": "#mkaya",
+  "yardstate": "#yardstate"
+ }
+}

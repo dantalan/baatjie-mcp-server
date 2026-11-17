@@ -1,0 +1,1171 @@
+(function(){
+'use strict';
+/* ---------------- session token ----------------
+   Every write to /api carries this browser's session token in X-CSRF-Token. The token is read
+   once from /api/csrf and copied into the hidden csrf_token field of every form. */
+let CSRF='';
+const nativeFetch=window.fetch.bind(window);
+const csrfReady=Promise.all([
+  nativeFetch('/api/csrf').then(r=>r.json()).then(j=>{CSRF=j.token||''}),
+  new Promise(res=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',res):res())
+]).then(()=>{document.querySelectorAll('form input[name="csrf_token"]').forEach(i=>{i.value=CSRF})}).catch(()=>{});
+window.fetch=async function(input,init){
+  const raw=typeof input==='string'?input:(input instanceof Request?input.url:String(input));
+  const u=new URL(raw,location.href);
+  const method=((init&&init.method)||(input instanceof Request?input.method:'GET')).toUpperCase();
+  if(method!=='GET'&&method!=='HEAD'&&u.origin===location.origin&&u.pathname.startsWith('/api/')){
+    await csrfReady;
+    const headers=new Headers((init&&init.headers)||(input instanceof Request?input.headers:undefined)||{});
+    headers.set('X-CSRF-Token',CSRF);
+    init=Object.assign({},init,{headers});
+  }
+  return nativeFetch(input,init);
+};
+/* ---------------- helpers ---------------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const R=n=>'R'+num(n);
+const TZ='Africa/Johannesburg';
+function todayISO(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}}
+function isoOf(ms){try{return new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ms))}catch(e){return new Date(ms).toISOString().slice(0,10)}}
+function addDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function dayDiff(a,b){return Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/864e5)}
+function nice(iso){const d=new Date(iso+'T00:00:00Z');return d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'})}
+let toastT;function toast(m,ms){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms||2600)}
+
+/* ---------------- data ---------------- */
+const PLANS=[
+ {key:'Starter',incl:6916,band:'70–199 units',feats:['Leasing & tenant onboarding','Tenant app','Rent invoicing','In-app messaging']},
+ {key:'Growth',incl:14490,band:'200–499 units',pop:true,feats:['Everything in Starter','White-label with your custom domain','Online payments & reconciliation','Owner portal & trust accounting','Branded rentals site','Documents & e-signature','Reports & API access']},
+ {key:'Scale',incl:25415,band:'500+ units',feats:['Everything in Growth','DebiCheck integration','Priority support','Multi-branch','Annual billing']}
+];
+const PLAN=Object.fromEntries(PLANS.map(p=>[p.key,p]));
+const exVat=n=>n/1.15;
+const TARGET=86417;
+const VER='v13.5',PRODUCT='sigsche',SITE='sigsche.co.za';
+// One naming rule for every download: sigsche-v12_<what>_<details>.<ext>
+function fname(parts,ext){return [PRODUCT+'-'+VER].concat(parts).filter(x=>x!=null&&x!=='').map(x=>String(x).replace(/[^\w.\-]+/g,'-').replace(/^-+|-+$/g,'')).join('_')+'.'+ext}
+const GROUP=new Set(['sigsche','covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']);
+const SITEOF={sigsche:'sigsche.co.za',zaaka:'zaaka.io'};
+// v13.6: a business with no domain gets a default. Stand-alone brands and locare/sigsche keep their own; sigsche-group brands get <slug>.sigsche.co.za; everything else whitelabels to <slug>.locare.co.za.
+const DOMAIN_STANDALONE=new Set(['zaaka','xnith','associates','budhapets','locare','sigsche']);
+function defaultDomain(k){if(DOMAIN_STANDALONE.has(k)||!/^[a-z0-9]{2,24}$/.test(k))return '';return GROUP.has(k)?k+'.sigsche.co.za':k+'.locare.co.za'}
+const ACT_EXTRA={};
+const STAGES=['New','Messaged','Replied','Demo booked','Pilot','Signed','Lost'];
+const CITIES=['East London','Durban','Pretoria','Cape Town','Other'];
+const UNITS=['Under 70','70–199','200–499','500+','Not sure'];
+const UNIT_PLAN={'Under 70':'Custom','70–199':'Starter','200–499':'Growth','500+':'Scale','Not sure':'Growth'};
+
+// Marks in the supaNOVA style: segments coloured accent (acc) or ink (fg).
+const BR={
+ locare:{name:'_locare',ref:'_locare',color:'#1C8EB8',parts:[{t:'_loc',c:'acc'},{t:'are',c:'fg'}]},
+ node1:{name:'_node one',ref:'_46saintjames',color:'#FFC93C',parts:[{t:'_node ',c:'acc'},{t:'one',c:'fg'}]},
+ baatjie:{name:'_baatjie',ref:'_baatjie',color:'#4169E1',parts:[{t:'_b',c:'fg'},{t:'aatjie',c:'acc'}]},
+ tanos:{name:'_tanos',ref:'_tanos',color:'#FF6B6B',parts:[{t:'_tan',c:'acc'},{t:'os',c:'fg'}]},
+ unuta:{name:'_unuta media',ref:'_unuta',color:'#D0466A',parts:[{t:'_unuta',c:'acc'},{t:' media',c:'fg'}]},
+ mastandie:{name:"_ma'standie",ref:'_mastandie',color:'#F59E0B',parts:[{t:"_ma'",c:'acc'},{t:'standie',c:'fg'}]},
+ stoeplife:{name:'_stoeplife',ref:'_stoeplife',color:'#F97316',parts:[{t:'_stoep',c:'acc'},{t:'life',c:'fg'}]},
+ erfwerk:{name:'_erfwerk',ref:'_erfwerk',color:'#B8B0A6',parts:[{t:'_erf',c:'acc'},{t:'werk',c:'fg'}]},
+ mkaya:{name:"_m'kaya",ref:'_mkaya',color:'#10B981',parts:[{t:"_m'",c:'acc'},{t:'kaya',c:'fg'}]},
+ yardstate:{name:'_yardstate',ref:'_yardstate',color:'#EC4899',parts:[{t:'_yard',c:'acc'},{t:'state',c:'fg'}]},
+ dantalan:{name:'_dantalan',ref:'_dantalan',color:'#FF8C1A',parts:[{t:'_d',c:'acc'},{t:'antalan',c:'fg'}]},
+ talandan:{name:'_talandan',ref:'_talandan',color:'#E0302A',parts:[{t:'_ta',c:'acc'},{t:'landan',c:'fg'}]},
+ taluna:{name:'_taluna',ref:'_taluna',color:'#2E9E4F',parts:[{t:'_tal',c:'acc'},{t:'una',c:'fg'}]},
+ sigsche:{name:'_sigsche',ref:'_sigsche',color:'#F2C200',parts:[{t:'_sig',c:'acc'},{t:'sche',c:'fg'}]},
+ covestos:{name:'_coVestOS',ref:'_covestos',color:'#F2C200',parts:[{t:'_coVest',c:'acc'},{t:'OS',c:'fg'}]},
+ associates:{name:'_the associat8s',ref:'_associat8s',color:'#B8C4D6',parts:[{t:'_the ',c:'fg'},{t:'associat8s',c:'acc'}]},
+ supanova:{name:'_supaNOVA',ref:'_supanova',color:'#7DA2FF',parts:[{t:'_supa',c:'fg'},{t:'NOVA',c:'acc'}]},
+ daqua:{name:'_daqua | taqua',ref:'_daqua',color:'#38BDF8',parts:[{t:'_daqua',c:'acc'},{t:' | taqua',c:'fg'}]},
+ mixmatch:{name:'_mix8match',ref:'_mix8match',color:'#FF5C8A',parts:[{t:'_mix',c:'acc'},{t:'8match',c:'fg'}]},
+ remotemom:{name:'_remotemom',ref:'_remotemom',color:'#F0607A',parts:[{t:'_remote',c:'acc'},{t:'mom',c:'fg'}]},
+ xnith:{name:'_xnith',ref:'_xnith',color:'#A7ACBD',parts:[{t:'_x',c:'acc'},{t:'nith',c:'fg'}]},
+ anchor:{name:'_anchor alliance',ref:'_anchoralliance',color:'#5EEAD4',parts:[{t:'_anchor',c:'acc'},{t:' alliance',c:'fg'}]},
+ zaaka:{name:'_zaaka.io',ref:'_zaaka',color:'#9FE870',parts:[{t:'_zaaka',c:'acc'},{t:'.io',c:'fg'}]},
+ budhapets:{name:'_budha pets',ref:'_budhapets',color:'#F4A261',parts:[{t:'_budha',c:'acc'},{t:' pets',c:'fg'}]},
+ onestandie:{name:"_one'standie",ref:'_onestandie',color:'#C0A060',parts:[{t:"_one'",c:'acc'},{t:'standie',c:'fg'}]},
+ backopposite:{name:'_backopposite',ref:'_backopposite',color:'#8B8DF5',parts:[{t:'_back',c:'acc'},{t:'opposite',c:'fg'}]}
+};
+const KIND_LABEL={product:'Product',proof:'Proof',tenant:'Tenant app',anime:'Anime',white:'White-label',partner:'Partner',media:'Behind the build',custom:'Signal'};
+const BORDER=['locare','tanos','baatjie','node1','talandan','dantalan','taluna','unuta','sigsche','mastandie','onestandie','backopposite','mkaya','stoeplife','erfwerk','yardstate'];
+const BGROUPS=[['Ecosystem',BORDER.slice(0,9)],['White-labels',BORDER.slice(9)],['Group',['covestos','associates','supanova','daqua','mixmatch','remotemom','xnith','anchor','zaaka','budhapets']]];
+const ROLE={locare:'property OS · master',tanos:'tenant app',baatjie:'the landlord',node1:'proof node',talandan:'land',dantalan:'signal',taluna:'true time',unuta:'broadcast',sigsche:'rectro tec lab · dePin central',mastandie:'township',onestandie:'premium',backopposite:'backyard',mkaya:'diaspora',stoeplife:'young pro',erfwerk:'working landlords',yardstate:'urban',covestos:'the bank',associates:'engineering think tank',supanova:'card studio · ONE.',daqua:'training institute',mixmatch:'fruit & veg · everything R13',remotemom:'remotemom',xnith:'xnith',anchor:'property management · since 2009',zaaka:'zaaka.io',budhapets:'budha pets'};
+// 33 platforms. mode: intent = opens with the caption in the post box · open = copy, then open · app = phone-only, copy.
+const PLATFORMS=[
+ ['instagram','Instagram','IG','#E1306C','social','open','https://www.instagram.com/'],
+ ['facebook','Facebook Page','FB','#4C8BF5','social','intent','https://www.facebook.com/'],
+ ['threads','Threads','TH','#BBBBBB','social','intent','https://www.threads.net/'],
+ ['twitter','X / Twitter','X','#FFFFFF','social','intent','https://x.com/'],
+ ['tiktok','TikTok','TT','#69C9D0','video','open','https://www.tiktok.com/upload'],
+ ['youtube','YouTube','YT','#FF5555','video','open','https://studio.youtube.com/'],
+ ['linkedin','LinkedIn','in','#3B8DD9','professional','intent','https://www.linkedin.com/'],
+ ['whatsapp','WhatsApp','WA','#25D366','messaging','intent','https://web.whatsapp.com/'],
+ ['telegram','Telegram','TG','#2CA5E0','messaging','intent','https://web.telegram.org/'],
+ ['pinterest','Pinterest','PI','#F0445C','visual','intent','https://www.pinterest.com/'],
+ ['linkedin_co','LinkedIn Company','LC','#3B8DD9','professional','intent','https://www.linkedin.com/'],
+ ['discord','Discord','DC','#7C87F5','messaging','open','https://discord.com/channels/@me'],
+ ['reddit','Reddit','RD','#FF6A33','social','intent','https://www.reddit.com/'],
+ ['substack','Substack','SS','#FF6719','professional','open','https://substack.com/home'],
+ ['medium','Medium','ME','#00AB6C','professional','open','https://medium.com/new-story'],
+ ['spotify','Spotify','SP','#1DB954','audio','open','https://creators.spotify.com/'],
+ ['behance','Behance','BE','#4D8DFF','visual','open','https://www.behance.net/'],
+ ['linktree','Linktree','LT','#43E660','professional','open','https://linktr.ee/admin'],
+ ['bluesky','Bluesky','BS','#3B9BFF','social','intent','https://bsky.app/'],
+ ['mastodon','Mastodon','MA','#8C8DFF','social','intent','https://joinmastodon.org/'],
+ ['snapchat','Snapchat','SC','#FFFC00','visual','open','https://web.snapchat.com/'],
+ ['soundcloud','SoundCloud','SO','#FF7733','audio','open','https://soundcloud.com/upload'],
+ ['github','GitHub','GH','#FFFFFF','professional','open','https://github.com/'],
+ ['vsco','VSCO','VS','#ACBA8E','visual','open','https://vsco.co/'],
+ ['tumblr','Tumblr','TU','#7C9CC8','social','intent','https://www.tumblr.com/'],
+ ['patreon','Patreon','PA','#FF5C66','professional','open','https://www.patreon.com/'],
+ ['kofi','Ko-fi','KO','#FF5E5B','professional','open','https://ko-fi.com/'],
+ ['clubhouse','Clubhouse','CH','#F1F0EE','audio','app',''],
+ ['applepod','Apple Podcasts','AP','#B45CF0','audio','open','https://podcastsconnect.apple.com/'],
+ ['lemon8','Lemon8','L8','#FFE629','visual','open','https://www.lemon8-app.com/'],
+ ['bereal','BeReal','BR','#FFFFFF','visual','app',''],
+ ['gbp','Google Business Profile','GB','#4C8BF5','professional','open','https://business.google.com/'],
+ ['dribbble','Dribbble','DR','#EA4C89','visual','open','https://dribbble.com/']
+].map(a=>({id:a[0],name:a[1],abbr:a[2],color:a[3],group:a[4],mode:a[5],url:a[6]}));
+const PLAT=Object.fromEntries(PLATFORMS.map(p=>[p.id,p]));
+const DEFAULT_ON=['instagram','facebook','threads','twitter','linkedin','whatsapp','tiktok'];
+const MODE_LABEL={intent:'One-tap share',open:'Copy + open',app:'Copy · post in app'};
+const LIMITS={twitter:280,bluesky:300,threads:500,mastodon:500};
+
+const BASE_POSTS=[
+ // Day 1 · Tue
+ {d:0,t:'08:17',b:'locare',k:'product',hook:'One system. The whole rental lifecycle.',sub:'Leasing, rent collection, trust accounting and owner payouts, under your brand.',body:"Listing to owner statement in one place: leasing, rent collection, trust accounting, owner payouts, maintenance, and apps for tenants and landlords.\n\nAll under your brand and your domain. Tenants never see Locare.\n\nSee it: {link}"},
+ {d:0,t:'12:12',b:'node1',k:'proof',hook:'11 units. Zero chasing.',sub:'Node 1 is where _locare was built and tested, on a real property.',body:"Node 1 is where _locare was built: 11 units, run end to end on the same system we sell. Every feature earned its place by fixing a real problem on a real property.\n\nDemo: {link}"},
+ {d:0,t:'19:19',b:'baatjie',k:'anime',ep:1,hook:"Faki'sandla or vokoff.",sub:'Episode 1 of _baatjie: Node One. The tenant meets a ledger that never forgets.',body:"_baatjie: Node One, episode 1.\n\nA tenant who won't pay meets a ledger that doesn't forget. The system wins.\n\nThe demo the episode is built on: {link}"},
+ // Day 2 · Wed 11|11
+ {d:1,t:'08:17',b:'locare',k:'product',hook:'Flat fee. No per-unit maths.',sub:'Starter R6,916 · Growth R14,490 · Scale R25,415 a month, VAT incl.',body:"Starter R6,916/month for 70–199 units.\nGrowth R14,490/month for 200–499.\nScale R25,415/month for 500+.\nVAT included.\n\nYour fee follows your portfolio band, not every new door.\n\n{link}"},
+ {d:1,t:'11:11',b:'baatjie',k:'anime',ep:5,kicker:'11|11 · E5',hook:'11|11. The portal opens.',sub:'Episode 5: the house where it all started.',body:"11|11. The portal opens.\n\nEpisode 5 of _baatjie: Node One is the montage of the house where it all started: 11 units, one system, no more WhatsApp debt collection.\n\n{link}"},
+ {d:1,t:'12:12',b:'tanos',k:'tenant',hook:'Tenants onboard in 90 seconds.',sub:'Apply, sign, pay and log maintenance from one app.',body:"_tanos is the tenant side of _locare. Tenants apply, sign, pay and log maintenance from one app.\n\nLess admin for your team, fewer calls for you.\n\n{link}"},
+ {d:1,t:'19:19',b:'mastandie',k:'white',hook:'Township rentals deserve real systems.',sub:'Proper leases, online rent, receipts tenants trust.',body:"_ma'standie runs on _locare: proper leases, online rent and receipts tenants can trust.\n\nBuilt for the landlords who keep South Africa housed.\n\n{link}"},
+ // Day 3 · Thu
+ {d:2,t:'08:17',b:'locare',k:'product',hook:'Your brand. Your domain.',sub:'White-label from Growth up. _locare stays behind the scenes.',body:"White-label from the Growth plan up: your logo, your colours, your domain and your own branded rentals site.\n\n_locare stays behind the scenes.\n\n{link}"},
+ {d:2,t:'12:12',b:'node1',k:'proof',hook:'Proof beats a pitch deck.',sub:'Rent collected and reconciled on the ledger agencies get.',body:"Before we sold _locare, we ran it.\n\nNode 1: 11 units, rent collected and reconciled through the same double-entry ledger agencies get.\n\n{link}"},
+ {d:2,t:'19:19',b:'unuta',k:'media',hook:'Behind the build.',sub:'How one property became a platform.',body:"_unuta media is filming how one property became a platform: the problems Node 1 threw at us, and the features that fixed them.\n\n{link}"},
+ // Day 4 · Fri
+ {d:3,t:'08:17',b:'locare',k:'product',hook:'Trust accounting, done right.',sub:'Owner portal and PPRA-aware trust accounting on Growth.',body:"Owner portal and PPRA-aware trust accounting come standard on Growth.\n\nEvery rand reconciled to a double-entry ledger. Owner statements without spreadsheets.\n\n{link}"},
+ {d:3,t:'12:12',b:'tanos',k:'tenant',hook:'Maintenance without the voice notes.',sub:'Tenants log it with photos. You assign it and close it.',body:"Tenants log a maintenance ticket in _tanos, with photos. You see it, assign it, close it.\n\nOne record instead of fifty voice notes.\n\n{link}"},
+ {d:3,t:'19:19',b:'locare',k:'partner',hook:'Refer an agency. Earn 26%, every month.',sub:'One Growth agency = R3,767 a month for as long as they stay.',body:"The _locare partner programme pays 26% recurring for as long as the agency you refer stays.\n\nOne Growth agency = R3,767 a month. Partners are vetted (KYC/KYB).\n\nApply: {link}"},
+ // Day 5 · Sat
+ {d:4,t:'08:17',b:'locare',k:'product',hook:'Live in a week.',sub:'Branding on day one. Data migration is what takes time.',body:"Branding on day one, then properties, owners and leases. Most agencies are live within a week.\n\nData migration is what takes time, and we don't rush it.\n\n{link}"},
+ {d:4,t:'12:12',b:'node1',k:'proof',hook:'What 11 units taught us.',sub:'Every problem _locare solves, we had first.',body:"Late rent. Lost receipts. Owner statements at midnight.\n\nNode 1 taught us every problem _locare solves. Now it solves them for portfolios of 70 to 500+ units.\n\n{link}"},
+ {d:4,t:'19:19',b:'stoeplife',k:'white',hook:'Renting, minus the runaround.',sub:'Find it, apply, sign and pay from your phone.',body:"_stoeplife runs on _locare: find a place, apply online, sign and pay from your phone.\n\nYoung professionals, sorted.\n\n{link}"},
+ // Day 6 · Sun
+ {d:5,t:'08:17',b:'baatjie',k:'anime',ep:4,hook:'Imali phambili.',sub:'Episode 4: money first, and nobody argues about who paid what.',body:"Money first.\n\nEpisode 4 of _baatjie: Node One, where the ledger glows and nobody argues about who paid what.\n\n{link}"},
+ {d:5,t:'12:12',b:'erfwerk',k:'white',hook:'For landlords who work with their hands.',sub:'Simple leases, rent reminders, records that stand up.',body:"_erfwerk brings _locare to working landlords: simple leases, rent reminders and records that stand up.\n\nLess paperwork, more weekend.\n\n{link}"},
+ {d:5,t:'19:19',b:'mkaya',k:'white',hook:'Managing SA property from abroad?',sub:'Rent in, costs out and every statement, wherever you are.',body:"_m'kaya runs on _locare. Your owner portal shows rent in, costs out and every statement, wherever you are.\n\nZAR and VAT-ready.\n\n{link}"},
+ // Day 7 · Mon
+ {d:6,t:'08:17',b:'locare',k:'product',hook:'Built for South African rules.',sub:'POPIA-aligned, ZAR and VAT-ready from day one.',body:"Tenant and owner data handled to POPIA standards. ZAR and VAT built in.\n\nSouth African software for South African rules.\n\n{link}"},
+ {d:6,t:'12:12',b:'locare',k:'product',hook:'Reports, API, e-signature.',sub:'Growth includes them. Scale adds DebiCheck and multi-branch.',body:"Growth includes reports and API access, documents with e-signature, and a branded rentals site with an application funnel.\n\nScale adds DebiCheck, multi-branch and priority support.\n\n{link}"},
+ {d:6,t:'19:19',b:'yardstate',k:'white',hook:'Township to suburb. One standard.',sub:'The same system at every price point.',body:"_yardstate brings the same _locare system to urban rentals at every price point.\n\nOne standard of service, whatever the address.\n\n{link}"},
+ // Day 8 · Tue
+ {d:7,t:'08:17',b:'locare',k:'product',hook:'See your portfolio on _locare.',sub:'Leasing, collections, trust and owner statements, in your branding.',body:"Book a demo and see your own portfolio on _locare: leasing, collections, trust accounting and owner statements, in your branding.\n\n{link}"},
+ {d:7,t:'12:12',b:'node1',k:'proof',hook:'From one node to many.',sub:'Starter from 70 units · Growth from 200 · Scale from 500.',body:"Node 1 proved it. The next nodes are agencies like yours.\n\nStarter from 70 units, Growth from 200, Scale from 500.\n\n{link}"},
+ {d:7,t:'19:19',b:'baatjie',k:'anime',ep:10,hook:"s'dla sonke, s'fa sonke.",sub:'Episode 10: a system that works for everyone in the building.',body:"Episode 10 of _baatjie: Node One.\n\ns'dla sonke, s'fa sonke. A system that works for landlords, tenants and the people who manage both.\n\n{link}"}
+].map(p=>Object.assign(p,{id:'d'+(p.d+1)+'-'+p.t.replace(':','')}));
+const POST_BY_ID=Object.fromEntries(BASE_POSTS.map(p=>[p.id,p]));
+
+const EPISODES=[
+ [1,"Faki'sandla or Vokoff","A dis kak tenant meets auto-debit."],
+ [2,'The Loudest One In The Room','Complains about a bulb, six weeks behind. _tanos mutes the noise.'],
+ [3,'Their Mouths Are Moving','A manipulation sequence, visualised as an anime battle.'],
+ [4,'Imali Phambili','Money first. The _locare ledger glows.'],
+ [5,'_46 Saint James','Node 1 montage: 11 units, zero chasing.'],
+ [6,'_tanos 90 Seconds','Tenant onboarding as a magical-girl transformation.'],
+ [7,"_ma'standie vs _one'standie",'Township and premium white-labels side by side.'],
+ [8,'Partner 26%','A side character earns recurring while sleeping.'],
+ [9,'Agency Empire','Seven white-labels become a city-wide network.'],
+ [10,"s'dla sonke, s'fa sonke",'Covenant. Community screening. Ends on locare.co.za.']
+];
+const MOONS=[['MUTHE','Creation','_locare','E1'],['ABRHAM','Foundation','Node 1','E5'],['YOHANNIS','Signal','_dantalan','E3'],['MISKARAM','Covenant','_baatjie','E4'],['TEQEMT','Land','_talandan','E9'],['HIDAR','Tenant','_tanos','E6'],['TAHSAS','Time','_taluna','13 moons'],['TIR','Broadcast','_unuta media','E10'],['YAKATIT','Lab','_sigsche','Lab builds ledger'],['MAGABIT','Township',"_ma'standie",'E7'],['MIYAZYA','Premium',"_one'standie",'Premium boutique'],['GINBOT','Diaspora',"_m'kaya",'Diaspora via _locare'],['SANE','Urban','_yardstate','Township to suburb']];
+
+/* ---------------- state ---------------- */
+const DEFAULT_SETTINGS={start:'2026-11-10',sender:'John Baatjie',perDay:10,demos:6,pilots:2,proofLabel:'Node 1 · 11 units',plat:{},biz:{},tlNames:'orig'};
+const state={settings:Object.assign({},DEFAULT_SETTINGS),leads:{},edits:{},entries:{},signals:{},cmp:{brand:'locare',plats:null,media:'text',busy:false},pf:'all',tl:{iso:todayISO(),fmt:'square',ground:'plaster',busy:false,edit:false},storage:'memory',tab:'today',day:null,cardPost:BASE_POSTS[0].id,fmt:'square',ground:'dark',basis:'incl',fCity:'All',fStage:'Active',readOnly:false};
+const LS='sigscheONE_v9';
+let localHad=null;
+try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){localHad=s;state.leads=s.leads||{};state.edits=s.edits||{};state.entries=s.entries||{};state.signals=s.signals||{};Object.assign(state.settings,s.settings||{})}state.storage='local'}catch(e){state.storage='memory'}
+function saveLocal(){if(state.storage==='db')return;try{localStorage.setItem(LS,JSON.stringify({leads:state.leads,edits:state.edits,entries:state.entries,signals:state.signals,settings:state.settings}));state.storage='local'}catch(e){state.storage='memory'}paintStore()}
+
+function post(id){const b=POST_BY_ID[id];return Object.assign({},b,state.edits[id]||{},{id:b.id,d:b.d,t:b.t,b:b.b,k:b.k,ep:b.ep,kicker:b.kicker})}
+function posts(){return BASE_POSTS.map(p=>post(p.id))}
+function firstLine(s){const l=String(s||'').split(/\n/)[0].trim();return l.length>64?l.slice(0,61).replace(/\s+\S*$/,'')+'…':l}
+function sig(id){const s=state.signals[id];if(!s)return null;return Object.assign({},s,{custom:true,d:null,t:s.time,b:BR[s.brand]?s.brand:s.brand==='baatjietec'?'sigsche':'locare',k:'custom',hook:s.hook||firstLine(s.body)||'Signal',sub:s.sub||''})}
+function sigs(){return Object.keys(state.signals).map(sig).sort((a,b)=>(a.date+a.t).localeCompare(b.date+b.t))}
+function allItems(){return posts().concat(sigs())}
+function item(id){return POST_BY_ID[id]?post(id):sig(id)}
+function doneCount(p){return p.done?Object.keys(p.done).length:0}
+function isPosted(p){return !!p.posted||doneCount(p)>0}
+function isOn(id){const c=state.settings.plat&&state.settings.plat[id];return c&&c.on!=null?!!c.on:DEFAULT_ON.includes(id)}
+function handleOf(id){const c=state.settings.plat&&state.settings.plat[id];return c&&c.h?c.h:''}
+function activeIds(){return PLATFORMS.filter(p=>isOn(p.id)).map(p=>p.id)}
+function platsOf(p){return p.custom?(p.plats||[]).filter(x=>PLAT[x]):activeIds()}
+function lbl(p){return p.custom?shortDate(p.date)+' '+p.t:'Day '+(p.d+1)+' '+p.t}
+function rec(id){return POST_BY_ID[id]?Object.assign({},state.edits[id]||{}):state.signals[id]?Object.assign({},state.signals[id]):null}
+function saveRec(id,r){if(POST_BY_ID[id])putEdit(id,r);else putSignal(r)}
+function dateOf(p){return p.custom?p.date:addDays(state.settings.start,p.d)}
+function link(p,src){if(GROUP.has(p.b))return SITEOF[p.b]?'https://'+SITEOF[p.b]:'';return 'https://locare.co.za/demo?ref='+encodeURIComponent(BR[p.b].ref)+'&src='+(src||'sigsche')}
+function tags(p){if(p.custom)return p.tags||'';const t={locare:'#locare',node1:'#nodeone',baatjie:'#nodeone #anime',tanos:'#tanos',unuta:'#unutamedia',mastandie:'#mastandie',stoeplife:'#stoeplife',erfwerk:'#erfwerk',mkaya:'#mkaya',yardstate:'#yardstate'}[p.b];return '#locare #proptech #southafrica'+(t&&t!=='#locare'?' '+t:'')}
+function caption(p){const body=String(p.body||'').replace(/\{link\}/g,link(p));if(p.custom){const has=/\{link\}/.test(p.body||''),c=has||p.cta==='none'?'':GROUP.has(p.b)?link(p):p.cta==='partner'?'Partner 26%: '+link(p,'partner'):'Demo: '+link(p);return [body,c,p.tags].filter(Boolean).join('\n\n')}return body+'\n\n'+tags(p)}
+function kicker(p){if(p.custom)return shortDate(p.date)+' · '+p.t;if(p.kicker)return p.kicker;if(p.k==='anime')return 'E'+p.ep+' · NODE ONE';if(p.k==='proof')return state.settings.proofLabel;if(p.k==='partner')return 'Partner 26%';if(p.k==='white')return 'Powered by _locare';if(p.k==='tenant')return 'Tenant app';if(p.k==='media')return 'Behind the build';return 'Day '+(p.d+1)+' · '+p.t}
+function sprintDay(){return dayDiff(state.settings.start,todayISO())}
+
+function leadsArr(){return Object.values(state.leads).sort((a,b)=>(b.created||0)-(a.created||0))}
+function metrics(){
+ const L=leadsArr(),today=todayISO();
+ const m={posted:posts().filter(isPosted).length,messaged:0,today:0,demos:0,pilots:0,signed:0,mrr:0,leads:L.length};
+ L.forEach(l=>{if(l.messagedAt){m.messaged++;if(isoOf(l.messagedAt)===today)m.today++}if(l.demoAt)m.demos++;if(l.pilotAt)m.pilots++;if(l.stage==='Signed'){m.signed++;m.mrr+=(PLAN[l.plan]||{incl:0}).incl}});
+ return m;
+}
+
+/* ---------------- storage: db capability, else this browser ---------------- */
+let db=null,dl=null,smp=null;const writeQ={};
+// Local edition: served by the master MCP on this computer. Storage, downloads, sign-in and upload go through it.
+const LOCAL=/^https?:$/.test(location.protocol)&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+let lastWrite=0,lastPull='',platInfo={},platBrowser=false,apiFields={};
+async function api(path,method,body){const r=await fetch(path,{method:method||'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('The server answered '+r.status));return j}
+function localDb(){const doc=(c,id)=>({set:d=>c==='settings'?api('/api/settings','PUT',d):api('/api/doc/'+c+'/'+encodeURIComponent(id),'PUT',d),delete:()=>api('/api/doc/'+c+'/'+encodeURIComponent(id),'DELETE')});return{collection:c=>({doc:id=>doc(c,id)}),doc:p=>{const a=p.split('/');return doc(a[0],a[1])}}}
+async function pullLocal(){
+ if(Date.now()-lastWrite<1500){lastPull='';return}
+ try{const j=await api('/api/state'),sig=JSON.stringify(j);if(sig===lastPull)return;lastPull=sig;
+  state.leads=j.leads||{};state.edits=j.edits||{};state.signals=j.signals||{};state.entries=j.taluna||{};state.settings=Object.assign({},DEFAULT_SETTINGS,j.settings||{});
+  state.storage='db';state.offline=false;if(!document.activeElement||!document.activeElement.closest||!document.activeElement.closest('#settings-form'))fillSettings();renderSoon()}
+ catch(e){state.offline=true;paintStore()}
+}
+async function pullPlat(){try{const j=await api('/api/platforms');platBrowser=!!j.browser;apiFields=j.api_fields||{};const o={};(j.rows||[]).forEach(r=>o[r.id]=r);const sig=JSON.stringify(o)+platBrowser;if(sig!==pullPlat.sig){pullPlat.sig=sig;platInfo=o;if(state.tab==='platforms'&&!editing())renderPlatforms()}}catch(e){}}
+async function connectLocal(){db=localDb();state.storage='db';$('#ver-lbl').textContent=VER+' · localhost · master MCP';await pullLocal();await pullPlat();setInterval(pullLocal,4000);setInterval(pullPlat,8000);paintStore()}
+function queueWrite(path,fn){lastWrite=Date.now();const p=(writeQ[path]||Promise.resolve()).then(fn).catch(onDbError);writeQ[path]=p;return p}
+function onDbError(e){const c=e&&e.code;if(LOCAL){toast('Not saved: '+((e&&e.message)||'the master MCP did not answer'),5000)}else if(c==='invalid_argument'){state.readOnly=true;toast('This view is read-only. Changes are not saved.')}else if(c==='quota_exceeded'){toast('Database is full. Delete old leads.')}else if(c==='unavailable'){toast('Database busy. Try that again.')}else toast('Not saved ('+(c||'error')+')');paintStore()}
+function putLead(l){state.leads[l.id]=l;if(db)queueWrite('leads/'+l.id,()=>db.collection('leads').doc(l.id).set(l));else saveLocal();renderSoon()}
+function dropLead(id){delete state.leads[id];if(db)queueWrite('leads/'+id,()=>db.collection('leads').doc(id).delete());else saveLocal();renderSoon()}
+function putEdit(id,e){state.edits[id]=e;if(db)queueWrite('posts/'+id,()=>db.collection('posts').doc(id).set(e));else saveLocal();renderSoon()}
+function putSignal(s){state.signals[s.id]=s;if(db)queueWrite('signals/'+s.id,()=>db.collection('signals').doc(s.id).set(s));else saveLocal();renderSoon()}
+function dropSignal(id){delete state.signals[id];if(db)queueWrite('signals/'+id,()=>db.collection('signals').doc(id).delete());else saveLocal();renderSoon()}
+function setPlat(id,patch){const S=state.settings,cur=Object.assign({on:isOn(id),h:''},S.plat&&S.plat[id]);S.plat=Object.assign({},S.plat,{[id]:Object.assign(cur,patch)});putSettings()}
+function putEntry(iso,e){state.entries[iso]=e;if(db)queueWrite('taluna/'+iso,()=>db.collection('taluna').doc(iso).set(e));else saveLocal();renderSoon()}
+function putSettings(){if(db)queueWrite('settings/main',()=>db.doc('settings/main').set(state.settings));else saveLocal();renderSoon()}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+async function connect(){
+ if(LOCAL){await connectLocal();return}
+ if(!(window.claude&&typeof window.claude.use==='function')){paintStore();return}
+ window.claude.use('sample').then(s=>{smp=s||null;renderSoon()}).catch(()=>{});
+ try{dl=await window.claude.use('downloads')}catch(e){dl=null}
+ let d=null;try{d=await window.claude.use('db')}catch(e){d=null}
+ if(!d){paintStore();return}
+ db=d;state.storage='db';state.leads={};state.edits={};state.entries={};state.signals={};paintStore();
+ const loading=setTimeout(()=>{$('#store span').textContent='Database not reachable yet';},10000);
+ let first=0;const done=()=>{if(++first>=5)clearTimeout(loading)};
+ db.collection('signals').onSnapshot(s=>{const o={};s.docs.forEach(x=>{if(x.exists)o[x.id]=clone(x.data())});state.signals=o;if(!s.metadata.fromCache)done();renderSoon()},onDbError);
+ db.collection('taluna').onSnapshot(s=>{const o={};s.docs.forEach(x=>{if(x.exists)o[x.id]=clone(x.data())});state.entries=o;if(!s.metadata.fromCache)done();renderSoon()},onDbError);
+ db.collection('leads').onSnapshot(s=>{const o={};s.docs.forEach(x=>{if(x.exists)o[x.id]=clone(x.data())});state.leads=o;if(!s.metadata.fromCache)done();renderSoon()},onDbError);
+ db.collection('posts').onSnapshot(s=>{const o={};s.docs.forEach(x=>{if(x.exists)o[x.id]=clone(x.data())});state.edits=o;if(!s.metadata.fromCache)done();renderSoon()},onDbError);
+ db.doc('settings/main').onSnapshot(s=>{state.settings=Object.assign({},DEFAULT_SETTINGS,s.exists?clone(s.data()):{});if(!s.metadata.fromCache)done();fillSettings();renderSoon()},onDbError);
+}
+function paintStore(){
+ const el=$('#store');el.className='store '+(state.storage==='db'?'db':state.storage==='local'?'local':'');
+ const t={db:LOCAL?(state.offline?'Master MCP not answering':'Saved on this computer · master MCP'):'Saved to the sigsche database',local:'Saved in this browser',memory:'Not saved (no storage)'}[state.storage]||'Starting…';
+ el.querySelector('span').textContent=state.readOnly?'Read-only view':t;
+ const n=$('#store-note');if(n)n.textContent=LOCAL?'Everything is saved on this computer by your master MCP (the data folder next to the server). Claude reads and writes the same data through the baatjie_sigsche tools.':state.storage==='db'?'Leads, post edits, posted marks and settings are saved to this page\'s own database. They follow you across devices, and Claude can read them back when you ask for a sprint review.':state.storage==='local'?'Saved in this browser only. Open the published page on claude.ai to save to the page\'s database instead.':'Nothing is being saved in this view. Use Backup before closing.';
+ const mb=$('#migrate-box');if(mb){const has=localHad&&((localHad.leads&&Object.keys(localHad.leads).length)||(localHad.edits&&Object.keys(localHad.edits).length)||(localHad.entries&&Object.keys(localHad.entries).length)||(localHad.signals&&Object.keys(localHad.signals).length));mb.innerHTML=state.storage==='db'&&has?'<button class="btn gold" data-act="migrate">Move this browser\'s saved data into the database</button>':''}
+}
+
+/* ---------------- downloads & copy ---------------- */
+function modal(title,note,html,selectable){$('#m-title').textContent=title;$('#m-note').textContent=note||'';$('#m-body').innerHTML=html;$('#m-select').hidden=!selectable;$('#modal').classList.add('on')}
+function showText(title,text){modal(title,'Saving isn\'t available in this view. Select all and copy.','<textarea class="ctrl" readonly id="m-text"></textarea>',true);$('#m-text').value=text}
+async function copy(text,label){try{await navigator.clipboard.writeText(text);toast(label||'Copied')}catch(e){modal(label||'Copy','Copy the text below.','<textarea class="ctrl" readonly id="m-text"></textarea>',true);$('#m-text').value=text}}
+const DL_OK=/\.(gif|png|jpe?g|webp|mp4|webm|txt|json|md|csv|html|svg|pdf|zip)$/i;
+async function saveFile(name,data,mime){
+ const blob=data instanceof Blob?data:new Blob([data],{type:mime||'text/plain'});
+ if(LOCAL){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);toast('Saved '+name+' to your Downloads folder',4000);return}
+ if(dl){
+  let n=name,b=blob;
+  // claude.ai only saves certain file types, so anything else (a calendar .ics) travels inside a ZIP.
+  if(!DL_OK.test(n)&&typeof JSZip!=='undefined'){const z=new JSZip();z.file(n,blob);b=await z.generateAsync({type:'blob'});n=n.replace(/\.[^.]+$/,'')+'.zip'}
+  try{await dl.save({filename:n,data:b});toast('Saved '+n);return}
+  catch(e){const c=e&&e.code;if(c==='declined'){toast('Save cancelled');return}if(c==='rate_limited'){toast('A save prompt is already open. Finish that one first.');return}}
+ }
+ if(typeof data==='string'){showText(name,data);return}
+ if(blob.type==='image/png'){const u=URL.createObjectURL(blob);modal(name,'Saving isn\'t available in this view. Right-click or long-press the image to save it.','<img alt="Card" src="'+u+'">',false);return}
+ toast('Saving isn\'t available in this view. Open the page on claude.ai or on localhost.',5000);
+}
+
+/* ---------------- supaNOVA card engine ---------------- */
+const F={disp:(w,s)=>w+' '+s+'px Syne, "Avenir Next", system-ui, sans-serif',body:(w,s)=>w+' '+s+'px Manrope, "Helvetica Neue", Arial, sans-serif',mono:(w,s)=>w+' '+s+'px "IBM Plex Mono", Menlo, monospace'};
+const FMT={square:{w:1080,h:1080,label:'SQUARE',name:'Square 1080 × 1080',note:'Instagram and Facebook feed'},story:{w:1080,h:1920,label:'STORY',name:'Story 1080 × 1920',note:'WhatsApp status, Stories, TikTok cover'},link:{w:1200,h:630,label:'LINK',name:'Link 1200 × 630',note:'LinkedIn, X and link previews'}};
+const GROUNDS={dark:'DARK',plaster:'PLASTER',brand:'BRAND'};
+function hexRgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255]}
+function lum(h){const[r,g,b]=hexRgb(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*r+.7152*g+.0722*b}
+function shade(h,f){const c=hexRgb(h).map(v=>Math.max(0,Math.min(255,Math.round(f<0?v*(1+f):v+(255-v)*f))));return'#'+c.map(v=>v.toString(16).padStart(2,'0')).join('')}
+function rgba(h,a){const[r,g,b]=hexRgb(h);return'rgba('+r+','+g+','+b+','+a+')'}
+function palette(ground,color){
+ if(ground==='plaster'){const acc=lum(color)>.45?shade(color,-.45):color;return{bg:'#E9E5DD',raise:'#F5F2EC',fg:'#16171B',mute:'rgba(22,23,27,.62)',line:'rgba(22,23,27,.32)',acc}}
+ if(ground==='brand'){const light=lum(color)>.42,fg=light?'#111214':'#FFFFFF';return{bg:color,raise:shade(color,light?.18:-.12),fg,mute:light?'rgba(17,18,20,.66)':'rgba(255,255,255,.74)',line:light?'rgba(17,18,20,.35)':'rgba(255,255,255,.4)',acc:fg}}
+ return{bg:'#0D0F12',raise:'#171A1F',fg:'#F1EEE7',mute:'rgba(241,238,231,.6)',line:'rgba(241,238,231,.28)',acc:color};
+}
+function wrap(ctx,text,maxW){const words=String(text||'').split(/\s+/).filter(Boolean),lines=[];let cur='';words.forEach(w=>{const t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w}else cur=t});if(cur)lines.push(cur);return lines}
+function ell(ctx,text,maxW){if(ctx.measureText(text).width<=maxW)return text;let t=text;while(t.length>1&&ctx.measureText(t+'…').width>maxW)t=t.slice(0,-1);return t+'…'}
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function drawMark(ctx,x,y,size,b,P,maxW){
+ let s=size;const measure=()=>{let t=0;b.parts.forEach(sg=>{ctx.font=F.disp(700,s);t+=ctx.measureText(sg.t).width});return t};
+ if(maxW){while(measure()>maxW&&s>8)s--}
+ let cx=x;ctx.textBaseline='alphabetic';ctx.textAlign='left';
+ b.parts.forEach(sg=>{ctx.font=F.disp(700,s);ctx.fillStyle=sg.c==='fg'?P.fg:P.acc;ctx.fillText(sg.t,cx,y);cx+=ctx.measureText(sg.t).width});
+}
+function drawOne(ctx,x,y,size,P){
+ ctx.font=F.disp(800,size);const w=ctx.measureText('ONE.').width,d=size*0.36,gap=size*0.45,total=w+gap+d*2;
+ ctx.fillStyle=P.fg;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText('ONE.',x-total,y);
+ const cx=x-d,cy=y-size*0.36;ctx.fillStyle=P.acc;ctx.beginPath();ctx.moveTo(cx,cy-d);ctx.lineTo(cx+d,cy);ctx.lineTo(cx,cy+d);ctx.lineTo(cx-d,cy);ctx.closePath();ctx.fill();
+}
+function drawRule(ctx,x1,x2,y,u,P,at){
+ const s=Math.max(9,15*u);ctx.font=F.mono(500,s);const label='86417',tw=ctx.measureText(label).width,pad=s*0.8,gx=x1+(x2-x1)*(at==null?0.62:at)-tw/2;
+ ctx.strokeStyle=P.line;ctx.lineWidth=Math.max(1,1.4*u);ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(gx-pad,y);ctx.moveTo(gx+tw+pad,y);ctx.lineTo(x2,y);ctx.stroke();
+ ctx.fillStyle=P.mute;ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(label,gx,y+0.5);ctx.textBaseline='alphabetic';
+}
+function drawQR(ctx,text,x,y,size,P){
+ ctx.fillStyle=P.raise;rr(ctx,x,y,size,size,size*0.04);ctx.fill();
+ if(!text||typeof qrcode==='undefined'){ctx.strokeStyle=P.line;ctx.lineWidth=2;rr(ctx,x+8,y+8,size-16,size-16,6);ctx.stroke();ctx.font=F.mono(500,Math.max(10,size*0.08));ctx.fillStyle=P.mute;ctx.textAlign='center';ctx.fillText('QR',x+size/2,y+size/2+4);ctx.textAlign='left';return false}
+ let q;try{q=qrcode(0,'M');q.addData(text);q.make()}catch(e){return false}
+ const n=q.getModuleCount(),quiet=2,cell=size/(n+quiet*2);ctx.fillStyle=P.fg;
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))ctx.fillRect(Math.floor(x+(c+quiet)*cell),Math.floor(y+(r+quiet)*cell),Math.ceil(cell)+1,Math.ceil(cell)+1);
+ return true;
+}
+function drawCard(cv,p,fmt,ground,scale){
+ const f=FMT[fmt];scale=scale||1;cv.width=Math.round(f.w*scale);cv.height=Math.round(f.h*scale);
+ const ctx=cv.getContext('2d');ctx.setTransform(scale,0,0,scale,0,0);
+ const b=BR[p.b],P=palette(ground,b.color),W=f.w,H=f.h,wide=fmt==='link',tall=fmt==='story';
+ ctx.fillStyle=P.bg;ctx.fillRect(0,0,W,H);
+ const gc=ground==='brand'?P.fg:b.color,g=ctx.createRadialGradient(W*.82,H*.12,0,W*.82,H*.12,Math.max(W,H)*.85);
+ g.addColorStop(0,rgba(gc,ground==='plaster'?.10:.20));g.addColorStop(1,rgba(gc,0));ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ const pad=Math.round(Math.min(W,H)*0.075),ms=wide?44:tall?64:52;
+ drawMark(ctx,pad,pad+ms*0.9,ms,b,P,W*0.5);
+ ctx.font=F.mono(500,wide?18:tall?26:22);ctx.fillStyle=P.mute;ctx.textAlign='right';ctx.fillText(ell(ctx,String(kicker(p)).toUpperCase(),W*0.42),W-pad,pad+ms*0.75);ctx.textAlign='left';
+ const qs=wide?200:tall?260:210,oneS=wide?26:34,bottom=H-pad;
+ const hookW=wide?W-pad*3-qs:W-pad*2,subW=wide?hookW:tall?W-pad*2:W-pad*2.5-qs;
+ let hs=wide?62:tall?118:92;const maxL=wide?2:tall?5:3;ctx.font=F.disp(800,hs);let lines=wrap(ctx,p.hook,hookW);
+ while(lines.length>maxL&&hs>28){hs-=3;ctx.font=F.disp(800,hs);lines=wrap(ctx,p.hook,hookW)}
+ let y=wide?H*0.34:tall?H*0.30:H*0.33;ctx.fillStyle=P.fg;lines.forEach(l=>{ctx.fillText(l,pad,y);y+=hs*1.06});
+ y+=hs*0.12;ctx.fillStyle=P.acc;ctx.fillRect(pad,y-hs*0.2,wide?60:90,wide?5:7);y+=wide?34:tall?70:52;
+ const ss=wide?24:tall?40:31;ctx.font=F.body(500,ss);ctx.fillStyle=P.mute;const sl=wrap(ctx,p.sub||'',subW),sm=wide?1:tall?3:2,keep=sl.slice(0,sm);if(sl.length>sm)keep[sm-1]=ell(ctx,sl.slice(sm-1).join(' '),subW);keep.forEach(l=>{ctx.fillText(ell(ctx,l,subW),pad,y);y+=ss*1.35});
+ const qx=W-pad-qs,qy=wide?(H-qs)/2+12:bottom-oneS*1.9-qs;const LK=link(p,'card');if(LK)drawQR(ctx,LK,qx,qy,qs,P);
+ const ly=bottom-oneS*1.9-(wide?0:10),lw=wide?W-pad*3-qs:qx-pad*1.5;
+ ctx.font=F.body(600,wide?17:tall?25:21);ctx.fillStyle=P.mute;ctx.fillText(ell(ctx,GROUP.has(p.b)?ROLE[p.b]:p.b==='locare'?'Flat monthly from R6,916 · VAT incl':'',lw),pad,ly-(wide?32:tall?50:42));
+ ctx.font=F.mono(500,wide?24:tall?34:30);ctx.fillStyle=P.fg;ctx.fillText(ell(ctx,GROUP.has(p.b)?(SITEOF[p.b]||''):'locare.co.za/demo',lw),pad,ly);
+ drawRule(ctx,pad,W-pad-oneS*3.8,bottom-oneS*0.36,oneS/24,P);drawOne(ctx,W-pad,bottom,oneS,P);
+}
+function cardBlob(p,fmt,ground){const cv=document.createElement('canvas');drawCard(cv,p,fmt,ground,1);return new Promise(r=>cv.toBlob(r,'image/png'))}
+function cardName(p,fmt){return fname(['card',p.b==='node1'?'nodeone':BR[p.b].ref.replace(/^_/,''),dateOf(p),p.t.replace(':',''),fmt],'png')}
+
+/* ---------------- video: the caption, one sentence at a time, over the card ---------------- */
+const VIDEO_FMT={video:'story',reel:'story',story:'story',carousel:'square'};
+let videoBusy=false;
+function videoScenes(p){
+ const body=String(p.body||'').replace(/\{link\}/g,'').replace(/\r/g,'');
+ const parts=body.split(/\n\s*\n|(?<=[.!?])\s+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
+ const cta=GROUP.has(p.b)&&SITEOF[p.b]?SITEOF[p.b]:'locare.co.za/demo';
+ return parts.concat([cta]);
+}
+function sceneSeconds(text){const words=text.split(' ').length;return Math.min(9,Math.max(2.5,words*0.42+0.8))}
+function drawScene(ctx,W,H,base,text,i,n,tt,P,p){
+ const a=Math.min(1,tt/0.4),pad=Math.round(W*0.06);
+ ctx.drawImage(base,0,0,W,H);
+ ctx.globalAlpha=a;ctx.textAlign='left';ctx.textBaseline='alphabetic';
+ // Caption sits in a small translucent band in the lower third, so the card stays visible above it.
+ let size=Math.round(W*0.042);ctx.font=F.body(600,size);
+ const inner=W-pad*2-pad*1.2;let lines=wrap(ctx,text,inner);
+ while(lines.length>4&&size>22){size-=2;ctx.font=F.body(600,size);lines=wrap(ctx,text,inner)}
+ if(lines.length>4){lines=lines.slice(0,4);lines[3]=ell(ctx,lines[3],inner)}
+ const lh=Math.round(size*1.3),bandH=lines.length*lh+pad*1.1,bandY=H-bandH-pad*1.6-16;
+ ctx.fillStyle='rgba(0,0,0,.7)';rr(ctx,pad,bandY,W-pad*2,bandH,Math.round(W*0.02));ctx.fill();
+ ctx.fillStyle='#FFFFFF';lines.forEach((l,k)=>ctx.fillText(l,pad+pad*0.6,bandY+pad*0.55+size+k*lh));
+ ctx.font=F.mono(500,Math.round(W*0.02));ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillText(BR[p.b].name.toUpperCase(),pad,pad+Math.round(W*0.02));
+ ctx.fillStyle=P.acc;ctx.fillRect(0,H-16,W*((i+1)/n),16);
+ ctx.globalAlpha=1;
+}
+async function videoBlob(p,fmt,ground,onProgress){
+ if(typeof MediaRecorder==='undefined'||!HTMLCanvasElement.prototype.captureStream)throw new Error('no-recorder');
+ const type=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+ if(!type)throw new Error('no-recorder');
+ const f=FMT[fmt],W=f.w,H=f.h,scenes=videoScenes(p);
+ if(!p.b||!BR[p.b])throw new Error('no-brand');
+ const base=document.createElement('canvas');drawCard(base,p,fmt,ground,1);
+ const P=palette(ground,BR[p.b].color),durs=scenes.map(sceneSeconds),total=durs.reduce((x,y)=>x+y,0)+1;
+ const out=document.createElement('canvas');out.width=W;out.height=H;const ctx=out.getContext('2d');
+ const stream=out.captureStream(30),rec=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:4000000}),chunks=[];
+ rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+ const stopped=new Promise(r=>{rec.onstop=r});
+ rec.start(250);
+ const t0=performance.now();
+ let timer=null;
+ const frame=()=>{
+  const t=(performance.now()-t0)/1000;
+  let acc=0,i=0;while(i<scenes.length-1&&t>=acc+durs[i]){acc+=durs[i];i++}
+  drawScene(ctx,W,H,base,scenes[i],i,scenes.length,Math.max(0,t-acc),P,p);
+  if(onProgress)onProgress(Math.min(1,t/total));
+  if(t>=total&&rec.state!=='inactive'){clearInterval(timer);rec.stop()}
+ };
+ frame();
+ // A timer, not requestAnimationFrame: animation frames stop when the window is in the background, which would stall the recording.
+ timer=setInterval(frame,33);
+ await stopped;
+ clearInterval(timer);
+ stream.getTracks().forEach(tr=>tr.stop());
+ return new Blob(chunks,{type:'video/webm'});
+}
+Object.assign(ACT_EXTRA,{
+ async cmpVideo(el){
+  if(videoBusy)return;
+  const p=cmpItem();
+  if(!p.body){toast('Write the signal first');$('#c-body').focus();return}
+  const fmt=VIDEO_FMT[state.cmp.media]||'story',label=el.textContent;
+  videoBusy=true;el.disabled=true;el.textContent='Making video…';
+  try{
+   const blob=await videoBlob(p,fmt,state.ground,f=>{el.textContent='Making video '+Math.round(f*100)+'%'});
+   await saveFile(fname(['video',p.b,dateOf(p),fmt],'webm'),blob,'video/webm');
+   toast('Video saved. Upload it to the platforms you picked.',4000);
+  }catch(err){
+   const c=err&&err.message;
+   toast(c==='no-recorder'?'This browser cannot record video here. Use Chrome or Edge.':c==='no-brand'?'Pick a brand first.':'Video failed. Try again.',5000);
+  }finally{videoBusy=false;el.disabled=false;el.textContent=label}
+ }
+});
+
+// Studio templates: one supaNOVA card per Taluna moon for a brand, saved to the cards folder.
+window.sigscheStudioTemplate=async function(brand,m,fmt,ground,day){
+ const T=TMOONS[m];
+ const p={id:'tpl-'+brand+'-m'+(m+1),b:brand,t:'09:00',date:'',k:'template',kicker:'MOON '+(m+1)+' · '+T.name,hook:T.moonName,sub:T.name+' · '+capFirst(T.theme)+'.'};
+ if(day){Object.assign(p,{id:p.id+'-d'+day,kicker:'MOON '+(m+1)+' · DAY '+day,sub:'Day '+day+' of 28 · '+capFirst(T.theme)+'.'})}
+ const cv=document.createElement('canvas');drawCard(cv,p,fmt,ground,1);
+ const name=fname(['template',BR[brand].ref.replace(/^_/,''),'moon'+(m+1)+(day?'-day'+day:'')+'-'+T.name.toLowerCase(),fmt],'png');
+ const r=await fetch('/api/card',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,data:cv.toDataURL('image/png')})}).then(x=>x.json());
+ return {name,file:r.file||null,ok:!!r.ok};
+};
+
+/* ---------------- render ---------------- */
+let renderT=0;function renderSoon(){cancelAnimationFrame(renderT);renderT=requestAnimationFrame(render)}
+let pending=false;
+function editing(){const a=document.activeElement;return a&&a.matches&&a.matches('input,textarea,select')&&a.closest('#post-list,#lead-body,#tl-entry,#plat-grid,#biz-grid,#acct-grid,#acct-form')}
+function render(){
+ applyBiz();paintHeader();paintStore();
+ if(editing()){pending=true;return}pending=false;
+ const t=state.tab;
+ if(t==='today')renderToday();else if(t==='taluna')renderTaluna();else if(t==='compose')renderCompose();else if(t==='platforms')renderPlatforms();else if(t==='posts')renderPosts();else if(t==='cards')renderCards();else if(t==='outreach')renderOutreach();else if(t==='partner')renderPartner();else if(t==='business')renderBusiness();else if(t==='accounts'){renderAccounts();pullAcct()}else if(t==='godsview')renderGodsview();
+}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(pending&&!editing())render()},0));
+function paintHeader(){
+ const m=metrics(),sd=sprintDay(),S=state.settings;
+ $('#h-day').textContent=sd<0?'Starts '+nice(S.start):sd>7?'Done':(sd+1)+' / 8';
+ $('#h-posted').textContent=m.posted+'/'+BASE_POSTS.length;$('#h-plat').textContent=activeIds().length+'/'+PLATFORMS.length;$('#h-msg').textContent=m.messaged;
+ $('#h-demo').textContent=m.demos+'/'+S.demos;$('#h-mrr').textContent=R(m.mrr);
+ const h=$('#top').offsetHeight;document.documentElement.style.setProperty('--toph',h+'px');
+}
+function kpi(v,l,frac,color){return '<div class="kpi"><b style="'+(color?'color:'+color:'')+'">'+v+'</b><span>'+l+'</span>'+(frac!=null?'<div class="bar"><i style="width:'+Math.max(0,Math.min(100,frac*100))+'%;'+(color?'background:'+color:'')+'"></i></div>':'')+'</div>'}
+function cityFor(d){return d<4?'East London':'Durban'}
+function renderToday(){
+ const sd=sprintDay(),S=state.settings,m=metrics();
+ const di=sd<0?0:sd>7?7:sd;
+ renderTodayTaluna();
+ $('#today-sub').textContent=sd<0?'Sprint starts '+nice(S.start)+' ('+(-sd)+' day'+(sd===-1?'':'s')+' from now). Day 1 is below so you can prepare.':sd>7?'Sprint finished on '+nice(addDays(S.start,7))+'. Results below; Export has the backup.':'Day '+(sd+1)+' of 8 · '+nice(todayISO())+' · outreach focus: '+cityFor(sd)+'.';
+ $('#today-kpis').innerHTML=kpi(m.posted+'/'+BASE_POSTS.length,'Posts posted',m.posted/BASE_POSTS.length)+kpi(m.today+'/'+S.perDay,'Messaged today',m.today/S.perDay,'#FFC93C')+kpi(m.demos+'/'+S.demos,'Demos booked',m.demos/S.demos,'#2ECC8A')+kpi(m.pilots+'/'+S.pilots,'Pilots',m.pilots/S.pilots,'#2ECC8A')+kpi(R(m.mrr),'Signed MRR of R86,417',m.mrr/TARGET);
+ $('#today-posts-h').textContent=(sd<0?'First up · ':sd>7?'Last day · ':'Today · ')+nice(addDays(S.start,di));
+ const dISO=addDays(S.start,di),list=allItems().filter(p=>dateOf(p)===dISO).sort((a,b)=>a.t.localeCompare(b.t));
+ $('#today-posts').innerHTML=list.map(p=>'<div class="mini '+(isPosted(p)?'done':'')+'" data-id="'+p.id+'"><div class="t"><div><b>'+p.t+'</b> · <span style="color:'+BR[p.b].color+'">'+esc(BR[p.b].name)+'</span> · '+esc(KIND_LABEL[p.k])+'</div><div>'+esc(p.hook)+'</div></div><div class="btns" style="margin:0;flex:none"><button class="btn teal" data-act="copyCap">Copy</button><button class="btn" data-act="saveCard">Card</button><button class="btn '+(isPosted(p)?'':'green')+'" data-act="togglePosted">'+(isPosted(p)?'Undo':'Posted')+'</button></div></div>').join('');
+ const L=leadsArr(),fresh=L.filter(l=>l.stage==='New'),follow=L.filter(l=>l.stage==='Messaged'&&l.messagedAt&&Date.now()-l.messagedAt>2*864e5);
+ $('#today-out').innerHTML='<div class="list"><b>'+m.today+' of '+S.perDay+'</b> agencies messaged today · focus <b>'+cityFor(di)+'</b><br>'+fresh.length+' added but not yet messaged · '+follow.length+' due a follow-up (messaged 2+ days ago, no reply yet)</div>'+(fresh.concat(follow).slice(0,5).map(l=>'<div class="mini" style="margin-top:8px"><div class="t"><div><b>'+esc(l.agency)+'</b></div><div>'+esc(l.city||'')+' · '+esc(l.stage)+'</div></div>'+waBtn(l)+'</div>').join(''))+'<div class="btns"><a class="btn gold" href="#outreach">Open pipeline</a></div>';
+}
+function mastoInst(){const h=handleOf('mastodon'),m=h.match(/^https?:\/\/([^\/\s]+)/)||h.match(/@[^@\s]+@([\w.-]+)/);return m?m[1]:''}
+function shareUrl(pl,p){
+ if(pl.mode==='app')return '';
+ const c=encodeURIComponent(caption(p)),u=encodeURIComponent(link(p));
+ if(!link(p)&&['facebook','reddit','pinterest','tumblr','telegram'].includes(pl.id))return pl.url;
+ switch(pl.id){
+  case 'twitter':return 'https://twitter.com/intent/tweet?text='+c;
+  case 'facebook':return 'https://www.facebook.com/sharer/sharer.php?u='+u;
+  case 'linkedin':case 'linkedin_co':return 'https://www.linkedin.com/feed/?shareActive=true&text='+c;
+  case 'threads':return 'https://www.threads.net/intent/post?text='+c;
+  case 'whatsapp':return 'https://wa.me/?text='+c;
+  case 'telegram':return 'https://t.me/share/url?url='+u+'&text='+c;
+  case 'reddit':return 'https://www.reddit.com/submit?url='+u+'&title='+encodeURIComponent(p.hook||'');
+  case 'pinterest':return 'https://pinterest.com/pin/create/button/?url='+u+'&description='+c;
+  case 'bluesky':return 'https://bsky.app/intent/compose?text='+c;
+  case 'tumblr':return 'https://www.tumblr.com/widgets/share/tool?canonicalUrl='+u+'&caption='+c;
+  case 'mastodon':{const m=mastoInst();return m?'https://'+m+'/share?text='+c:pl.url}
+  default:return pl.url;
+ }
+}
+function platChips(p){const ids=platsOf(p);if(!ids.length)return '<span class="note" style="margin:0">No platforms on. Switch some on in <a href="#platforms">Platforms</a>.</span>';return ids.map(pid=>{const pl=PLAT[pid],done=p.done&&p.done[pid],u=shareUrl(pl,p);return '<span class="pc'+(done?' done':'')+'">'+(LOCAL?'<button type="button" data-act="platUp" data-pid="'+pid+'" title="Upload to '+esc(pl.name)+'">'+esc(pl.name)+' ↑</button>':u?'<a href="'+esc(u)+'" target="_blank" rel="noopener" data-act="platGo" data-pid="'+pid+'">'+esc(pl.name)+' ↗</a>':'<button type="button" data-act="platGo" data-pid="'+pid+'">'+esc(pl.name)+' ⧉</button>')+'<button type="button" class="tick" data-act="platDone" data-pid="'+pid+'" aria-pressed="'+(!!done)+'" aria-label="Mark posted on '+esc(pl.name)+'">✓</button></span>'}).join('')}
+function articleHtml(p){
+ const n=platsOf(p).length,dc=doneCount(p),edited=!p.custom&&state.edits[p.id]&&(state.edits[p.id].hook||state.edits[p.id].body||state.edits[p.id].sub);
+ return '<article class="post '+(isPosted(p)?'done':'')+'" data-id="'+p.id+'"><div class="pthumb"><canvas data-thumb="'+p.id+'" aria-label="Card for '+esc(p.hook)+'"></canvas></div><div><div class="pmeta"><b>'+(p.custom?esc(shortDate(p.date))+' · ':'')+p.t+'</b><span style="color:'+BR[p.b].color+'">'+esc(BR[p.b].name)+'</span><span class="tag">'+esc(KIND_LABEL[p.k])+'</span>'+(p.custom&&p.media?'<span class="tag">'+esc(p.media.toUpperCase())+'</span>':'')+(isPosted(p)?'<span class="tag ok">POSTED'+(dc?' · '+dc+'/'+n+' platforms':'')+'</span>':'')+'</div>'+
+ '<label class="lbl">Card headline</label><input class="ctrl" data-f="hook" maxlength="70" value="'+esc(p.hook)+'">'+
+ '<label class="lbl">Card line</label><input class="ctrl" data-f="sub" maxlength="90" value="'+esc(p.sub)+'">'+
+ '<label class="lbl">Caption'+(p.custom?'':' · {link} becomes '+esc(link(p).replace('https://','')))+'</label><textarea class="ctrl" data-f="body">'+esc(p.body)+'</textarea>'+
+ '<div class="btns"><button class="btn" data-act="saveEdit">Save edits</button><button class="btn teal" data-act="copyCap">Copy caption</button><button class="btn" data-act="saveCard">Save card</button><button class="btn '+(isPosted(p)?'':'green')+'" data-act="togglePosted">'+(isPosted(p)?'Undo posted':'Mark posted')+'</button>'+(edited?'<button class="btn red" data-act="resetEdit">Reset copy</button>':'')+(p.custom?'<button class="btn red" data-act="delSignal">Delete</button>':'')+'</div><div class="pcs">'+platChips(p)+'</div></div></article>';
+}
+function renderPosts(){
+ const sd=sprintDay();if(state.day==null)state.day=sd<0?0:sd>7?7:sd;
+ const SG=sigs(),all=posts();
+ $('#day-chips').innerHTML=Array.from({length:8},(_,i)=>{const n=all.filter(p=>p.d===i),done=n.filter(isPosted).length;return '<button class="chip '+(i===sd?'today':'')+'" aria-pressed="'+(i===state.day)+'" data-act="day" data-day="'+i+'">Day '+(i+1)+' · '+esc(nice(addDays(state.settings.start,i)))+' · '+done+'/'+n.length+'</button>'}).join('')+'<button class="chip" aria-pressed="'+(state.day==='sig')+'" data-act="day" data-day="sig">My signals · '+SG.filter(isPosted).length+'/'+SG.length+'</button>';
+ const list=state.day==='sig'?SG:all.filter(p=>p.d===state.day);
+ $('#post-list').innerHTML=list.length?list.map(articleHtml).join(''):'<div class="card empty">No signals yet. Write one in <a href="#compose">Compose</a> and it lands here.</div>';
+ $$('canvas[data-thumb]').forEach(cv=>{const p=item(cv.dataset.thumb);if(p)drawCard(cv,p,'square',state.ground,0.34)});
+}
+function renderCards(){
+ if(!item(state.cardPost))state.cardPost=BASE_POSTS[0].id;
+ $('#fmt-seg').innerHTML=Object.entries(FMT).map(([k,v])=>'<button type="button" data-act="fmt" data-v="'+k+'" aria-pressed="'+(state.fmt===k)+'">'+v.label+'</button>').join('');
+ $('#ground-seg').innerHTML=Object.entries(GROUNDS).map(([k,v])=>'<button type="button" data-act="ground" data-v="'+k+'" aria-pressed="'+(state.ground===k)+'">'+v+'</button>').join('');
+ const all=allItems(),sel=$('#card-post');sel.innerHTML=all.map(p=>'<option value="'+p.id+'"'+(p.id===state.cardPost?' selected':'')+'>'+esc(lbl(p))+' · '+esc(BR[p.b].name)+' · '+esc(p.hook)+'</option>').join('');
+ const p=item(state.cardPost),f=FMT[state.fmt];drawCard($('#stage'),p,state.fmt,state.ground,1);
+ $('#card-dims').textContent=f.name+' · '+f.note+(link(p,'card')?' · QR opens '+link(p,'card').replace('https://',''):'');
+ const sc=Math.min(340/f.w,340/f.h);
+ $('#wall').innerHTML=all.map(q=>'<button type="button" class="tile" data-act="pick" data-id="'+q.id+'" aria-pressed="'+(q.id===state.cardPost)+'"><canvas data-wall="'+q.id+'"></canvas><small>'+esc(lbl(q))+' · '+esc(q.hook)+'</small></button>').join('');
+ $$('canvas[data-wall]').forEach(cv=>{const q=item(cv.dataset.wall);if(q)drawCard(cv,q,state.fmt,state.ground,sc)});
+}
+
+/* ---------------- composer ---------------- */
+function brandTags(b){const t='#'+BR[b].ref.replace(/^_/,'');return GROUP.has(b)?t+(b==='sigsche'?' #signalscheduler':''):'#locare #proptech #southafrica'+(b==='locare'?'':' '+t)}
+function cmpItem(){const v=id=>$(id).value,body=v('#c-body').trim();return {custom:true,id:'draft',brand:state.cmp.brand,b:state.cmp.brand,k:'custom',hook:v('#c-hook').trim()||firstLine(body)||'Your signal',sub:'',body,cta:v('#c-cta'),tags:v('#c-tags').trim(),date:v('#c-date')||todayISO(),t:v('#c-time')||'08:17',plats:[...state.cmp.plats],media:state.cmp.media}}
+function cmpPreview(){
+ if(!state.cmp.plats)return;const p=cmpItem(),cap=caption(p);
+ $('#c-prev').textContent=p.body?cap:'Your signal will appear here…';$('#c-handle').textContent=BR[p.b].name;
+ $('#c-stats').innerHTML=kpi(p.body?cap.length:0,'Characters')+kpi(state.cmp.plats.size+'/33','Platforms');
+ const over=p.body?[...state.cmp.plats].filter(x=>LIMITS[x]&&cap.length>LIMITS[x]).map(x=>PLAT[x].name+' ('+LIMITS[x]+')'):[];
+ $('#c-fit').textContent=over.length?'Probably too long for: '+over.join(', ')+'. Shorten it, or trim on that platform.':'';
+ drawCard($('#c-card'),p,'square',state.ground,0.5);
+}
+function renderCompose(){
+ if(!state.cmp.plats)state.cmp.plats=new Set(activeIds());
+ $('#c-bcount').textContent=Object.keys(ROLE).length;
+ $('#c-brands').innerHTML=BGROUPS.map(g=>'<p class="lbl" style="grid-column:1/-1;margin:4px 0 0">'+g[0]+' · '+g[1].length+'</p>'+g[1].map(k=>'<button type="button" class="bcard" data-act="cmpBrand" data-b="'+k+'" aria-pressed="'+(state.cmp.brand===k)+'"><span class="dot" style="background:'+BR[k].color+'"></span><span class="tx"><b>'+esc(BR[k].name)+'</b><small>'+esc(ROLE[k])+'</small></span></button>').join('')).join('');
+ $('#c-plats').innerHTML=PLATFORMS.map(pl=>'<button type="button" class="bcard" data-act="cmpPlat" data-p="'+pl.id+'" aria-pressed="'+state.cmp.plats.has(pl.id)+'"><span class="ptile" style="color:'+pl.color+'">'+pl.abbr+'</span><span class="tx"><b>'+esc(pl.name)+'</b><small>'+MODE_LABEL[pl.mode]+'</small></span></button>').join('');
+ $('#c-pcount').textContent=state.cmp.plats.size+' of 33 selected';
+ $('#c-media').innerHTML=['text','image','video','carousel','reel','story','live'].map(m=>'<button type="button" class="chip" data-act="cmpMedia" data-v="'+m+'" aria-pressed="'+(state.cmp.media===m)+'">'+m.toUpperCase()+'</button>').join('');
+ const tm=$('#c-time');if(!tm.options.length){tm.innerHTML=RHYTHM.map(r=>'<option value="'+r[0]+'">'+r[0]+' · '+esc(r[1])+'</option>').join('');tm.value='08:17'}
+ if(!$('#c-date').value)$('#c-date').value=todayISO();
+ const tg=$('#c-tags');if(!tg.dataset.touched)tg.value=brandTags(state.cmp.brand);
+ $('#c-draft').hidden=!smp;$('#c-video').hidden=!['video','reel','story','carousel'].includes(state.cmp.media);
+ cmpPreview();
+}
+const TPL=[
+ {b:'locare',cta:'demo',hook:'One system. Your brand.',body:"_locare runs an agency's whole rental lifecycle in one system: leasing, rent collection, trust accounting, owner payouts and maintenance, under your own brand and domain.\n\nFlat monthly fee: Starter R6,916 · Growth R14,490 · Scale R25,415, VAT included.\n\nMost agencies are live within a week."},
+ {b:'node1',cta:'demo',hook:'Built on a real property first.',body:"Built on a real property first. Node 1 runs 11 units end to end on the same system we sell.\n\nTenants onboard in _tanos. Rent reconciles to a double-entry ledger. Owners see it all in their portal."},
+ {b:'locare',cta:'partner',hook:'Refer an agency. Earn 26%.',body:"Refer an agency to _locare and earn 26% of their subscription every month they stay.\n\nOne Growth agency is R3,767 a month. Partners are vetted (KYC/KYB)."}
+];
+let tplN=0,cmpCtl=null;
+$('#c-form').addEventListener('submit',e=>{
+ e.preventDefault();const p=cmpItem();
+ if(!p.body){toast('Write the signal first');$('#c-body').focus();return}
+ if(!p.plats.length){toast('Pick at least one platform');return}
+ const s={id:'S'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),brand:p.brand,plats:p.plats,hook:$('#c-hook').value.trim(),body:p.body,cta:p.cta,tags:p.tags,media:p.media,date:p.date,time:p.t,created:Date.now(),done:{}};
+ putSignal(s);$('#c-hook').value='';$('#c-body').value='';state.day='sig';cmpPreview();toast('Queued for '+p.plats.length+' platform'+(p.plats.length===1?'':'s')+'. See it in Queue → My signals.');
+});
+['#c-body','#c-hook','#c-tags','#c-cta','#c-date','#c-time'].forEach(id=>{$(id).addEventListener('input',cmpPreview);$(id).addEventListener('change',cmpPreview)});
+$('#c-tags').addEventListener('input',()=>{$('#c-tags').dataset.touched='1'});
+
+/* ---------------- platforms dashboard ---------------- */
+const LOGIN_LABEL={signed_in:['SIGNED IN','ok'],signed_out:['NOT SIGNED IN',''],marked:['SIGNED IN · MARKED BY YOU','ok'],unknown:['NOT CONFIRMED',''],no_web:['PHONE APP','']};
+function loginRow(pl){
+ const r=platInfo[pl.id]||{login:'unknown'},L=LOGIN_LABEL[r.login]||LOGIN_LABEL.unknown;
+ return '<div class="pf" style="flex-wrap:wrap;gap:6px"><span class="tag '+L[1]+'">'+L[0]+'</span>'+(r.api_ready?'<span class="tag gold">API READY</span>':'')+'<span style="display:flex;gap:5px;flex-wrap:wrap">'+(r.login==='no_web'?'':'<button class="btn" data-act="platLogin" data-pid="'+pl.id+'">Log in</button>')+(r.api?'<button class="btn" data-act="platToken" data-pid="'+pl.id+'">API token</button>':'')+(r.login!=='no_web'&&!r.login_detectable?'<button class="btn" data-act="platMark" data-pid="'+pl.id+'">'+(r.login==='marked'?'Unmark':'I\'m signed in')+'</button>':'')+'</span></div>';
+}
+function platCounts(){const c={};allItems().forEach(p=>{if(p.done)Object.keys(p.done).forEach(k=>{c[k]=(c[k]||0)+1})});return c}
+function renderPlatforms(){
+ const c=platCounts(),on=activeIds().length,hs=PLATFORMS.filter(p=>handleOf(p.id)).length,tot=Object.values(c).reduce((a,b)=>a+b,0);
+ const top=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
+ $('#plat-kpis').innerHTML=kpi(on+'/33','Switched on',on/33,'#2ECC8A')+(LOCAL?kpi(Object.values(platInfo).filter(r=>r.login==='signed_in'||r.login==='marked'||r.api_ready).length+'/31','Signed in · browser '+(platBrowser?'open':'closed'),null,'#2ECC8A'):kpi(hs+'/33','Handles saved',hs/33))+kpi(tot,'Posts ticked, all platforms')+kpi(top?esc(PLAT[top[0]].name):'–','Most posted'+(top?' · '+top[1]:''),null,'#FFC93C');
+ const groups=['all','on','social','video','professional','messaging','visual','audio'];
+ $('#plat-filter').innerHTML=groups.map(g=>'<button class="chip" data-act="platFilter" data-v="'+g+'" aria-pressed="'+(state.pf===g)+'">'+(g==='on'?'SWITCHED ON':g.toUpperCase())+' · '+PLATFORMS.filter(p=>g==='all'||(g==='on'?isOn(p.id):p.group===g)).length+'</button>').join('');
+ const list=PLATFORMS.filter(p=>state.pf==='all'||(state.pf==='on'?isOn(p.id):p.group===state.pf));
+ $('#plat-grid').innerHTML=list.map(pl=>{const o=isOn(pl.id),h=handleOf(pl.id),home=/^https?:\/\//.test(h)?h:pl.url;return '<div class="pcard'+(o?' on':'')+'"><div class="ph"><span class="ptile" style="color:'+pl.color+'">'+pl.abbr+'</span><div class="tx"><b>'+esc(pl.name)+'</b><small>'+pl.group+' · '+MODE_LABEL[pl.mode]+'</small></div><button class="btn '+(o?'green':'')+'" data-act="platToggle" data-pid="'+pl.id+'" aria-pressed="'+o+'">'+(o?'On':'Off')+'</button></div><input class="ctrl" data-ph="'+pl.id+'" maxlength="120" aria-label="'+esc(pl.name)+' handle or page link" placeholder="'+(pl.id==='mastodon'?'@you@mastodon-host':'@handle or page link')+'" value="'+esc(h)+'">'+(LOCAL?loginRow(pl):'')+'<div class="pf"><span>'+(c[pl.id]||0)+' posted</span>'+(home?'<a href="'+esc(home)+'" target="_blank" rel="noopener">Open ↗</a>':'<span>phone app</span>')+'</div></div>'}).join('')||'<div class="card empty">Nothing switched on yet.</div>';
+}
+
+Object.assign(ACT_EXTRA,{
+ copyCap(el){const p=item(el.closest('[data-id]').dataset.id);if(p)copy(caption(p),'Caption copied')},
+ async saveCard(el){const p=item(el.closest('[data-id]').dataset.id);if(p)saveFile(cardName(p,'square'),await cardBlob(p,'square',state.ground),'image/png')},
+ togglePosted(el){const id=el.closest('[data-id]').dataset.id,r=rec(id);if(!r)return;if(isPosted(item(id))){r.posted=false;r.postedAt=null;r.done={}}else{r.posted=true;r.postedAt=Date.now()}saveRec(id,r);toast(r.posted?'Marked posted':'Marked not posted')},
+ saveEdit(el){const art=el.closest('[data-id]'),id=art.dataset.id,r=rec(id),base=POST_BY_ID[id];if(!r)return;['hook','sub','body'].forEach(f=>{const v=art.querySelector('[data-f="'+f+'"]').value.trim();if(base){if(v&&v!==base[f])r[f]=v;else delete r[f]}else r[f]=v});if(document.activeElement)document.activeElement.blur();saveRec(id,r);toast('Saved')},
+ delSignal(el){const id=el.closest('[data-id]').dataset.id;twoTap(el,'ds'+id,'Tap again',()=>{dropSignal(id);toast('Signal deleted')})},
+ day(el){state.day=el.dataset.day==='sig'?'sig':+el.dataset.day;renderPosts()},
+ platGo(el){const p=item(el.closest('[data-id]').dataset.id),pl=PLAT[el.dataset.pid];if(!p||!pl)return;const cap=caption(p);if(pl.mode==='intent'){try{navigator.clipboard.writeText(cap).catch(()=>{})}catch(e){}}else copy(cap,'Caption copied. Paste it in '+pl.name+'.')},
+ platDone(el){const id=el.closest('[data-id]').dataset.id,pid=el.dataset.pid,r=rec(id);if(!r)return;r.done=Object.assign({},r.done);if(r.done[pid])delete r.done[pid];else{r.done[pid]=Date.now();if(!r.postedAt)r.postedAt=Date.now()}saveRec(id,r)},
+ platToggle(el){setPlat(el.dataset.pid,{on:!isOn(el.dataset.pid)});state.cmp.plats=null},
+ platFilter(el){state.pf=el.dataset.v;renderPlatforms()},
+ cmpBrand(el){state.cmp.brand=el.dataset.b;renderCompose()},
+ cmpPlat(el){const s=state.cmp.plats,k=el.dataset.p;if(s.has(k))s.delete(k);else s.add(k);renderCompose()},
+ cmpSet(el){const v=el.dataset.v;state.cmp.plats=new Set(v==='all'?PLATFORMS.map(p=>p.id):v==='on'?activeIds():[]);renderCompose()},
+ cmpMedia(el){state.cmp.media=el.dataset.v;renderCompose()},
+ cmpTpl(){const t=TPL[tplN++%TPL.length];state.cmp.brand=t.b;$('#c-hook').value=t.hook;$('#c-body').value=t.body;$('#c-cta').value=t.cta;renderCompose();toast('Template loaded. Edit it to make it yours.')},
+ async cmpDraft(el){
+  if(!smp||state.cmp.busy)return;const k=state.cmp.brand,brief=$('#c-body').value.trim();
+  state.cmp.busy=true;el.disabled=true;el.textContent='Drafting…';cmpCtl=new AbortController();
+  const prompt=GROUP.has(k)?'Write one social media caption for the brand '+BR[k].name+' ('+ROLE[k]+'). Use only what the brief says. Invent no facts, numbers, names or testimonials.\n\nBrief from the user: '+(brief||'a short introduction post')+'\n\nWrite 2 to 4 short paragraphs, under 500 characters in total, plain text, South African English. No hashtags, no links, no emojis. Return only the caption.':'Write one social media caption for the brand '+BR[k].name+' ('+ROLE[k]+'), part of the _locare ecosystem in South Africa.\n\nFacts you may use. Use nothing else, and invent no numbers, names, testimonials or statistics:\n- _locare is South African property-management software for rental agencies.\n- It covers the whole rental lifecycle: leasing, rent collection, trust accounting, owner payouts, maintenance, and apps for tenants and landlords.\n- White-label under the agency\'s own brand and domain from the Growth plan.\n- Flat monthly pricing including VAT: Starter R6,916 (70 to 199 units), Growth R14,490 (200 to 499), Scale R25,415 (500+).\n- Most agencies are live within a week. POPIA-aligned.\n- Node 1 is an 11-unit property run end to end on the system.\n- _tanos is the tenant app.\n- The partner programme pays 26% recurring; partners are vetted.\n\nBrief from the user: '+(brief||'a general post for this brand')+'\n\nWrite 2 to 4 short paragraphs, under 500 characters in total, plain text, South African English. No hashtags, no links, no emojis: those are added separately. Return only the caption.';
+  try{const r=await smp(prompt,{signal:cmpCtl.signal,cache:false,modelTier:'quick'});$('#c-body').value=String(r.text||'').trim();cmpPreview();toast('Draft ready. Edit it before you queue.')}
+  catch(err){const c=err&&err.code;if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(c)){smp=null;toast('Claude is not available in this view.')}else if(c==='rate_limited')toast('Too many requests. Try again in a minute.');else if(c!=='cancelled')toast('No draft ('+(c||'error')+'). Try again.')}
+  finally{state.cmp.busy=false;cmpCtl=null;el.disabled=false;el.textContent='Draft with Claude';el.hidden=!smp}
+ },
+ async cardPng(){const p=item(state.cardPost);saveFile(cardName(p,state.fmt),await cardBlob(p,state.fmt,state.ground),'image/png')},
+ cardFormats(){const p=item(state.cardPost);zipCards([p],Object.keys(FMT),fname(['cards',p.id,'all-formats'],'zip'))},
+ cardDay(){const d=dateOf(item(state.cardPost));zipCards(allItems().filter(p=>dateOf(p)===d),[state.fmt],fname(['cards',d,state.fmt],'zip'))},
+ cardAll(){const a=allItems();zipCards(a,[state.fmt],fname(['cards','all-'+a.length,state.fmt,todayISO()],'zip'))},
+ tlNames(el){state.settings=Object.assign({},state.settings,{tlNames:el.dataset.v});putSettings();renderTaluna()}
+});
+
+function phoneIntl(ph){let d=String(ph||'').replace(/\D/g,'');if(!d)return '';if(d.startsWith('0'))d='27'+d.slice(1);return d}
+function script(l,kind){
+ const S=state.settings,who=l.contact?l.contact.split(' ')[0]:'there',ag=l.agency||'your agency',lk='https://locare.co.za/demo?ref=_locare&src=wa';
+ kind=kind||({New:'first',Messaged:'follow',Replied:'invite','Demo booked':'confirm'}[l.stage]||'first');
+ if(kind==='follow')return 'Hi '+who+', '+S.sender+' from locare again. Happy to show you how '+ag+' would look on locare, in your own branding. Would Thursday or Friday suit for a short demo?\n\n'+lk;
+ if(kind==='invite')return 'Thanks '+who+'. Let\'s do a demo: I\'ll show leasing, rent collection, trust accounting and owner statements on a sample portfolio, branded as '+ag+'. What day and time works for you?';
+ if(kind==='confirm')return 'Hi '+who+', confirming our locare demo for '+ag+'. Anything specific you want me to cover? If you share roughly how many units and owners you manage, I\'ll set the sample up to match.';
+ return 'Hi '+who+', '+S.sender+' here from locare. We run an agency\'s whole rental lifecycle in one system: leasing, rent collection, trust accounting and owner statements, under the agency\'s own brand and domain. Flat monthly fee by portfolio size, and most agencies are live within a week.\n\nWould a short demo this week be useful for '+ag+'?\n\n'+lk;
+}
+function waBtn(l){const n=phoneIntl(l.phone),s=encodeURIComponent(script(l));return n?'<a class="btn green" href="https://wa.me/'+n+'?text='+s+'" target="_blank" rel="noopener" data-act="waOpen" data-id="'+l.id+'">WhatsApp ↗</a>':'<button class="btn" data-act="copyScript" data-id="'+l.id+'">Copy message</button>'}
+function renderOutreach(){
+ const m=metrics(),S=state.settings,sd=sprintDay(),di=sd<0?0:sd>7?7:sd;
+ $('#out-kpis').innerHTML=kpi(m.today+'/'+S.perDay,'Messaged today · '+cityFor(di),m.today/S.perDay,'#FFC93C')+kpi(m.messaged,'Messaged in total')+kpi(m.demos+'/'+S.demos,'Demos booked',m.demos/S.demos,'#2ECC8A')+kpi(m.pilots+'/'+S.pilots,'Pilots',m.pilots/S.pilots,'#2ECC8A')+kpi(R(m.mrr),'Signed MRR',m.mrr/TARGET);
+ $('#f-city').innerHTML=['All'].concat(CITIES).map(c=>'<option'+(c===state.fCity?' selected':'')+'>'+c+'</option>').join('');
+ $('#f-stage').innerHTML=['Active','All'].concat(STAGES).map(c=>'<option'+(c===state.fStage?' selected':'')+'>'+c+'</option>').join('');
+ let L=leadsArr();if(state.fCity!=='All')L=L.filter(l=>l.city===state.fCity);if(state.fStage==='Active')L=L.filter(l=>l.stage!=='Lost'&&l.stage!=='Signed');else if(state.fStage!=='All')L=L.filter(l=>l.stage===state.fStage);
+ $('#lead-body').innerHTML=L.length?L.map(l=>'<tr data-id="'+l.id+'"><td><b>'+esc(l.agency)+'</b><br><span style="color:var(--dim)">'+esc([l.contact,l.phone,l.email].filter(Boolean).join(' · '))+'</span></td><td>'+esc(l.city||'')+'<br><span style="color:var(--dim)">'+esc(l.units||'')+'</span></td><td><select class="ctrl" data-chg="plan">'+['Starter','Growth','Scale','Custom'].map(p=>'<option'+(p===l.plan?' selected':'')+'>'+p+'</option>').join('')+'</select></td><td><select class="ctrl" data-chg="stage">'+STAGES.map(s=>'<option'+(s===l.stage?' selected':'')+'>'+s+'</option>').join('')+'</select></td><td><input class="ctrl" data-chg="notes" maxlength="200" value="'+esc(l.notes||'')+'"></td><td>'+waBtn(l)+'</td><td><button class="btn red" data-act="delLead">Delete</button></td></tr>').join(''):'<tr><td colspan="7" class="empty">'+(leadsArr().length?'No agencies match this filter.':'No agencies yet. Add the first East London agency on the right.')+'</td></tr>';
+ const sample={contact:'Thandi',agency:'Your Agency',stage:'New'};
+ $('#scripts').innerHTML=[['first','First message'],['follow','Follow-up · day 3'],['invite','After a reply'],['confirm','Demo confirmation']].map(([k,t])=>'<div style="margin-bottom:12px"><span class="lbl" style="margin-top:0">'+t+'</span><div class="list" style="white-space:pre-wrap;font-size:11.5px">'+esc(script(sample,k))+'</div></div>').join('')+'<p class="note">Each lead\'s WhatsApp button picks the right script for its stage and fills in the contact\'s first name and agency.</p>';
+ if(!$('#l-city').options.length){$('#l-city').innerHTML=CITIES.map(c=>'<option>'+c+'</option>').join('');$('#l-units').innerHTML=UNITS.map(c=>'<option'+(c==='200–499'?' selected':'')+'>'+c+'</option>').join('')}
+ const cityNow=cityFor(di);if(!$('#lead-form').dataset.touched)$('#l-city').value=cityNow;
+}
+function renderPartner(){
+ $('#basis-seg').innerHTML=[['incl','Price incl VAT'],['ex','Price ex VAT']].map(([k,v])=>'<button type="button" data-act="basis" data-v="'+k+'" aria-pressed="'+(state.basis===k)+'">'+v+'</button>').join('');
+ const n=id=>Math.max(0,parseInt($(id).value,10)||0),s=n('#p-s'),g=n('#p-g'),sc=n('#p-sc'),f=state.basis==='ex'?exVat:x=>x;
+ const mrr=s*f(6916)+g*f(14490)+sc*f(25415),mo=mrr*0.26;
+ $('#p-out').innerHTML=kpi(R(mo),'Your commission a month',null,'#FFC93C')+kpi(R(mo*12),'A year')+kpi(R(mrr),'Revenue referred a month');
+ $('#p-per').innerHTML=PLANS.map(p=>'<b>'+p.key+'</b> R'+num(f(p.incl))+(state.basis==='ex'?' ex VAT':' incl VAT')+' × 26% = <b>'+R(f(p.incl)*0.26)+'</b>/month').join('<br>');
+ $('#p-note').textContent=state.basis==='ex'?'On the ex-VAT price, partners are paid on the revenue locare keeps after VAT goes to SARS.':'On the VAT-inclusive price (as in v8), about 13% of each payout is commission on the VAT portion, which goes to SARS. Check which basis your partner agreement uses.';
+ const code=($('#p-code').value||'_locare').trim();$('#p-link').value='https://locare.co.za/demo?ref='+encodeURIComponent(code)+'&src=partner';
+}
+const MCP_PLAT={twitter:'x',linkedin_co:'linkedin_company',gbp:'google_business'};
+function buildMcp(){
+ const P=allItems().filter(p=>!isPosted(p)&&/^\d{4}-\d{2}-\d{2}$/.test(dateOf(p)||'')&&/^\d\d:\d\d$/.test(p.t||''));
+ return JSON.stringify({product:PRODUCT,site:SITE,version:VER,file:fname(['baatjie-mcp-signals',todayISO()],'json'),tool:'baatjie_schedule_signal',note:'One call per item. Add user_id (the sigscheCore profile id) and actor to each call.',total:P.length,items:P.map(p=>({brand_id:BR[p.b].ref.replace(/^_/,''),brand_name:BR[p.b].name,caption:caption(p),platforms:platsOf(p).map(x=>MCP_PLAT[x]||x),scheduled_date:dateOf(p),scheduled_time:p.t,is_ad:false,is_master:p.b==='locare'&&!p.custom,item_type:p.k,media:cardName(p,'square')}))},null,2);
+}
+ACT_EXTRA.mcp=function(){saveFile(fname(['baatjie-mcp-signals',todayISO()],'json'),buildMcp(),'application/json')};
+function renderStatic(){
+ $('#fn-list').innerHTML='Every download follows one rule: <b>'+PRODUCT+'-'+VER+'_what_details.ext</b><br>'+[['Card',fname(['card','locare',state.settings.start,'0817','square'],'png')],['Devotional card',fname(['taluna',todayISO(),'moon10-day3','square'],'png')],['Card ZIPs',fname(['cards',state.settings.start,'square'],'zip')+' · each holds manifest.csv'],['Calendar',fname(['calendar',state.settings.start,'to',addDays(state.settings.start,7)],'ics')],['Runner queue',fname(['queue',todayISO()],'json')],['MCP signals',fname(['baatjie-mcp-signals',todayISO()],'json')],['Leads',fname(['leads-close',todayISO()],'csv')],['Backup',fname(['backup',todayISO()],'json')],['Series bible',fname(['baatjie-node-one','series-bible'],'txt')]].map(r=>'<b>'+r[0]+'</b> · '+esc(r[1])).join('<br>')+'<br>The queue and MCP files name each post\'s card file, and every ZIP lists its files, captions and links in manifest.csv.';
+ $('#price-grid').innerHTML=PLANS.map(p=>'<div class="price '+(p.pop?'pop':'')+'">'+(p.pop?'<span class="tag gold" style="float:right">MOST POPULAR</span>':'')+'<h4>'+p.key.toUpperCase()+'</h4><div class="amt">'+R(p.incl)+'<span style="font-size:13px">/mo</span></div><div class="per">'+p.band+' · '+R(exVat(p.incl)).replace(/(\d)$/,'$1')+' ex VAT · 26% partner = '+R(p.incl*0.26)+'/mo</div><ul>'+p.feats.map(f=>'<li>'+esc(f)+'</li>').join('')+'</ul></div>').join('')+'<div class="price"><h4>ENTERPRISE</h4><div class="amt" style="font-size:20px">Scoped with sales</div><div class="per">Portfolios that don\'t fit a band</div><ul><li>Everything in Scale</li><li>Branded native apps</li><li>Custom integrations</li><li>Multi-country</li><li>Dedicated onboarding</li></ul></div>';
+ const inSprint={};BASE_POSTS.filter(p=>p.k==='anime').forEach(p=>inSprint[p.ep]=p);
+ $('#eps').innerHTML=EPISODES.map(([n,t,l])=>'<div class="ep"><b>E'+n+'</b><div><b style="color:var(--text)">'+esc(t)+'</b><br><span style="color:var(--dim)">'+esc(l)+'</span>'+(inSprint[n]?'<br><span class="tag gold">In sprint · Day '+(inSprint[n].d+1)+' '+inSprint[n].t+'</span>':'')+'</div></div>').join('');
+ $('#moons').innerHTML=MOONS.map((m,i)=>'<b>'+(i+1)+'. '+m[0]+'</b> '+m[1]+' · '+esc(m[2])+' · '+esc(m[3])).join('<br>')+'<br>Day 365: Day With God. Reflection, covenant.';
+}
+function bibleText(){
+ return '_BAATJIE: NODE ONE · SERIES BIBLE (sigsche '+VER+' · sigsche.co.za)\nSeparate from TGTBTBAT. Promotes _locare, _tanos and _sigsche.\n\nLOGLINE\nMalome _baatjie builds sovereign property nodes across Azania. Each episode, a new tenant archetype tries to break the system. _locare and _tanos win. Each ends with the demo link and the 26% partner call.\n\nSTYLE\nAfro-anime, Azania urban, blue-collar spiritual. Space Mono UI overlays, taluna time stamps. Hopeful: the system wins.\n\nCHARACTERS\n- _baatjie: malome, landlord, blue-collar sage, wears the blue baatjie\n- _dantalan: signal operator, runs sigscheONE\n- _talandan: land keeper, secures nodes\n- _tanos: tenant fairy who lives in the phone, onboards in 90 seconds\n- _locare: OS spirit, reconciles the ledger\n- _sigsche: rectro tec lab, the lab kids building the dePin nodes\n- _unuta media: broadcast crew filming the proof\n\nSEASON 1 (10 x 3 min)\n'+EPISODES.map(([n,t,l])=>'E'+n+': '+t+' - '+l).join('\n')+'\n\nEND CARD\nlocare.co.za/demo\nPartner 26%: share the demo, earn recurring\nBuilt by _baatjie | _sigsche | _unuta media\n\nIN THIS SPRINT\n'+BASE_POSTS.filter(p=>p.k==='anime').map(p=>'E'+p.ep+': '+nice(dateOf(p))+' '+p.t).join('\n')+'\n\nYEAR OF MIRACLES (13 MOONS)\n'+MOONS.map((m,i)=>(i+1)+'. '+m[0]+' '+m[1]+' - '+m[2]+' - '+m[3]).join('\n')+'\nDay 365: Day With God\n\nSEPARATE FROM TGTBTBAT\nTGTBTBAT is the documentary, live-action tenant horror. The anime is hopeful: the system wins. Separate playlists.\n\nASSETS NEEDED\nCharacter sheets for the 7 core characters, 7 white-label city skins, Node 1 building turnaround, 3-minute cut plus 15-second teaser per episode.\n';
+}
+
+/* ---------------- Taluna Calendar – Maktoof ---------------- */
+
+const TMOONS=[
+ {name:'GENESIS',moonName:'Moon of First Light',theme:'origin, intention, the first breath'},
+ {name:'ROOT',moonName:'Moon of Deep Earth',theme:'grounding, foundation, stillness under pressure'},
+ {name:'SIGNAL',moonName:'Moon of the Voice',theme:'transmission, clarity, the voice that cuts through'},
+ {name:'VESSEL',moonName:'Moon of Open Hands',theme:'receiving, capacity, surrender as strength'},
+ {name:'FIRE',moonName:'Moon of Sacred Burning',theme:'transformation, release, the burn that purifies'},
+ {name:'SEED',moonName:'Moon of Invisible Work',theme:'potential, patience, invisible progress'},
+ {name:'SOL',moonName:'Moon of Pure Truth',theme:'truth, center, the light that cannot lie'},
+ {name:'HARVEST',moonName:'Moon of Returning',theme:'return, reaping, evidence of the unseen work'},
+ {name:'MIRROR',moonName:'Moon of Clear Seeing',theme:'reflection, accountability, seeing clearly'},
+ {name:'THRESHOLD',moonName:'Moon of the Crossing',theme:'transition, doorways, the courage of crossing'},
+ {name:'STILL',moonName:'Moon of Sacred Silence',theme:'silence, depth, knowing without noise'},
+ {name:'NODE',moonName:'Moon of Meeting',theme:'connection, network, ONE meeting ONE'},
+ {name:'ONE',moonName:'Moon of All Things',theme:'completion, unity, the return to everything'}
+];
+const LAYER=[
+ {eth:'MUTHE',brand:'_locare',anime:"E1 Faki'sandla or Vokoff",theme:'Money first, automated',color:'#00D4FF'},
+ {eth:'ABRHAM',brand:'Node 1 · 11 units',anime:'E5 Node 1 Proof',theme:'Proof over promise',color:'#FFC93C'},
+ {eth:'YOHANNIS',brand:'_dantalan',anime:'E3 Their Mouths Are Moving',theme:'Pattern recognition',color:'#E85D04'},
+ {eth:'MISKARAM',brand:'_baatjie',anime:'E4 Imali Phambili',theme:'Blue-collar origin, the blue baatjie',color:'#4169E1'},
+ {eth:'TEQEMT',brand:'_talandan',anime:'E9 Agency Empire',theme:'Land secured',color:'#E0302A'},
+ {eth:'HIDAR',brand:'_tanos',anime:'E6 _tanos 90 Seconds',theme:'90-second onboarding',color:'#FF6B6B'},
+ {eth:'TAHSAS',brand:'_taluna',anime:'13 Moons Calendar',theme:'True time, 13 moons',color:'#2E9E4F'},
+ {eth:'TIR',brand:'_unuta media',anime:"E10 s'dla sonke",theme:'Proof filming, broadcast',color:'#D0466A'},
+ {eth:'YAKATIT',brand:'_sigsche',anime:'Lab Builds the Ledger',theme:'rectro tec lab, dePin central',color:'#F2C200'},
+ {eth:'MAGABIT',brand:"_ma'standie",anime:'E7 Township vs Premium',theme:'Township landlord',color:'#F59E0B'},
+ {eth:'MIYAZYA',brand:"_one'standie",anime:'Premium boutique',theme:'Premium living',color:'#C0A060'},
+ {eth:'GINBOT',brand:"_m'kaya",anime:'Diaspora managing via _locare',theme:'Pan-African',color:'#10B981'},
+ {eth:'SANE',brand:'_yardstate',anime:'Township to suburb',theme:'Urban bridge',color:'#EC4899'}
+];
+const WEEKS=[['NEW MOON','🌑'],['FIRST QUARTER','🌓'],['FULL MOON','🌕'],['LAST QUARTER','🌗']];
+const RHYTHM=[['05:55','Rise'],['06:55','Open'],['07:55','Prime'],['08:17','Angel · 86417'],['09:09','Build'],['11:11','Align'],['12:12','Mid'],['14:14','Momentum'],['15:15','Proof'],['16:16','Close'],['18:18','Release'],['19:19','Stories'],['21:21','Night signal']];
+const MASTER=new Set([11,22,33]);
+const NUMM={1:['ORIGIN','The point before division. Pure potential.'],2:['DUALITY','Two forces in conversation. Balance is the work.'],3:['CREATION','The third thing that emerges from two. Make.'],4:['FOUNDATION','The ground beneath the vision. Build it solid.'],5:['FREEDOM','Change is the nature of aliveness. Move.'],6:['HARMONY','Love as structure, not sentiment. Hold it.'],7:['TRUTH','The number of the seeker. Go deeper.'],8:['ABUNDANCE','Infinite flow. What you give returns amplified.'],9:['COMPLETION','All numbers live inside 9. This is the return.'],11:['ILLUMINATION','Master number. The channel is open. Receive.'],22:['ARCHITECTURE','Master number. Vision made physical. Build NOW.'],33:['THE TEACHER','Master number. Truth spoken through love only.']};
+function reduceNum(n){while(n>9&&!MASTER.has(n))n=String(n).split('').reduce((a,d)=>a+Number(d),0);return n}
+const TZ_SIGNS=[['Imix','Crocodile · Water · Nurturing'],['Ik','Wind · Breath · Spirit'],['Akbal','Night · House · Dreams'],['Kan','Seed · Lizard · Abundance'],['Chikchan','Serpent · Life Force · Power'],['Kimi','Death · Transformation · Rebirth'],['Manik','Deer · Healing · Cooperation'],['Lamat','Rabbit · Venus · Harmony'],['Muluk','Water · Moon · Emotions'],['Ok','Dog · Loyalty · Guidance'],['Chuwen','Monkey · Artisan · Play'],['Eb','Road · Grass · Journey'],['Ben','Reed · Staff · Authority'],['Ix','Jaguar · Shaman · Earth Magic'],['Men','Eagle · Vision · Higher Mind'],['Kib','Vulture · Wisdom · Karma'],['Kaban','Earth · Earthquake · Evolution'],['Etznab','Flint · Mirror · Truth'],['Kawak','Storm · Thunder · Purification'],['Ajaw','Sun · Lord · Enlightenment']];
+const ANIMALS=['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'],ELEM=['Wood','Wood','Fire','Fire','Earth','Earth','Metal','Metal','Water','Water'];
+const ZOD=[[1,19,'Capricorn'],[2,18,'Aquarius'],[3,20,'Pisces'],[4,19,'Aries'],[5,20,'Taurus'],[6,20,'Gemini'],[7,22,'Cancer'],[8,22,'Leo'],[9,22,'Virgo'],[10,22,'Libra'],[11,21,'Scorpio'],[12,21,'Sagittarius'],[12,31,'Capricorn']];
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function shortDate(iso){return +iso.slice(8,10)+' '+MON[+iso.slice(5,7)-1]}
+function trueStart(y){return y+'-03-01'}
+function tlYearOf(iso){const Y=+iso.slice(0,4),M=+iso.slice(5,7);return M>=3?Y:Y-1}
+function tlToGreg(y,m,d){return addDays(trueStart(y),m*28+d-1)}
+function tlGodDays(y){const n=dayDiff(trueStart(y),trueStart(y+1));return Array.from({length:n-364},(_,i)=>addDays(trueStart(y),364+i))}
+function tlFromGreg(iso){const y=tlYearOf(iso),td=dayDiff(trueStart(y),iso)+1;if(td>364)return{y,god:true,td};return{y,god:false,m:Math.floor((td-1)/28),d:(td-1)%28+1,td}}
+function moonPhase(iso){const SYN=29.53058867,K=Date.UTC(2000,0,6,18,14),t=Date.parse(iso+'T10:00:00Z'),c=(((t-K)/864e5%SYN)+SYN)%SYN,n=c/SYN;let name,icon;
+ if(n<.0337){name='New Moon';icon='🌑'}else if(n<.25){name='Waxing Crescent';icon='🌒'}else if(n<.2837){name='First Quarter';icon='🌓'}else if(n<.5){name='Waxing Gibbous';icon='🌔'}else if(n<.5337){name='Full Moon';icon='🌕'}else if(n<.75){name='Waning Gibbous';icon='🌖'}else if(n<.7837){name='Last Quarter';icon='🌗'}else{name='Waning Crescent';icon='🌘'}
+ return{name,icon,pct:Math.round((1-Math.cos(2*Math.PI*n))/2*100)}}
+function isLeap(y){return(y%4===0&&y%100!==0)||y%400===0}
+function ethYear(iso){const Y=+iso.slice(0,4),ny=Y+'-09-'+(isLeap(Y+1)?'12':'11');return iso>=ny?Y-7:Y-8}
+function tzolkin(iso){const d=dayDiff('2012-12-21',iso),n=((3+d)%13+13)%13+1,i=((19+d)%20+20)%20;return{n,sign:TZ_SIGNS[i][0],meaning:TZ_SIGNS[i][1]}}
+function chinese(iso){let y=+iso.slice(0,4);if(iso.slice(5)<'02-04')y--;return ELEM[((y-4)%10+10)%10]+' '+ANIMALS[((y-4)%12+12)%12]}
+function western(iso){const m=+iso.slice(5,7),d=+iso.slice(8,10);return ZOD.find(z=>m<z[0]||(m===z[0]&&d<=z[1]))[2]}
+function sacred(iso){const t=tlFromGreg(iso);let num=null;if(!t.god){const raw=t.m+1+t.d,r=reduceNum(raw);num={raw,r,word:NUMM[r][0],desc:NUMM[r][1]}}return{iso,t,ph:moonPhase(iso),eth:ethYear(iso),tz:tzolkin(iso),cn:chinese(iso),wz:western(iso),num}}
+function inSprint(iso){const k=dayDiff(state.settings.start,iso);return k>=0&&k<=7}
+function defaultTags(S){return '#dantalan #ONE #yearofmiracles #86417 #talunaCalendar #'+S.ph.name.toLowerCase().replace(/ /g,'')}
+function entryCaption(e){return [e.title,e.opening,e.reflection,e.practice?'Practice: '+e.practice:'',e.signal,e.hashtags].filter(Boolean).join('\n\n')}
+function tlDateline(S){const t=S.t;return (t.god?'DAY WITH GOD · '+t.td:'MOON '+(t.m+1)+' · DAY '+t.d+' · '+TMOONS[t.m].name)+' · '+S.ph.icon+' '+S.ph.name.toUpperCase()+' · MAKTOOF · 86417'}
+function tlShare(e){const c=encodeURIComponent(entryCaption(e));return [['X','https://twitter.com/intent/tweet?text='+c],['Threads','https://www.threads.net/intent/post?text='+c],['WhatsApp','https://wa.me/?text='+c]].map(x=>'<a href="'+x[1]+'" target="_blank" rel="noopener">'+x[0]+' ↗</a>').join('')}
+
+function renderTodayTaluna(){
+ const S=sacred(todayISO()),t=S.t,e=state.entries[S.iso];
+ $('#today-taluna').innerHTML='<div><div class="t">'+(t.god?'DAY WITH GOD':'MOON '+(t.m+1)+' · '+TMOONS[t.m].name+' · DAY '+t.d+' OF 28')+'</div><div class="s">'+esc(t.god?'Outside the 13 moons':TMOONS[t.m].moonName+', '+TMOONS[t.m].theme)+' · '+S.ph.icon+' '+esc(S.ph.name)+'</div></div><a class="btn gold" href="#taluna" data-act="tlToday">'+(e?'Read today\'s entry':'Open today\'s devotional')+'</a>';
+}
+function renderTaluna(){
+ const iso=state.tl.iso,S=sacred(iso),t=S.t,y=t.y,today=todayISO(),tt=tlFromGreg(today),v8=state.settings.tlNames==='v8';
+ $('#tl-names').innerHTML=[['orig','GENESIS…ONE'],['v8','MUTHE…SANE']].map(x=>'<button type="button" data-act="tlNames" data-v="'+x[0]+'" aria-pressed="'+((x[0]==='v8')===v8)+'">'+x[1]+'</button>').join('');
+ $('#tl-yearlbl').textContent='Taluna year '+y+'–'+String(y+1).slice(2);
+ $('#tl-moons').innerHTML=TMOONS.map((m,i)=>'<button type="button" class="moon-btn'+(tt.y===y&&!tt.god&&tt.m===i?' now':'')+'" data-act="tlMoon" data-m="'+i+'" aria-pressed="'+(!t.god&&t.m===i)+'"><b>'+String(i+1).padStart(2,'0')+'</b><span><span class="nm">'+(v8?LAYER[i].eth:m.name)+'</span><span class="mn">'+esc(v8?LAYER[i].brand+' · '+LAYER[i].anime:m.moonName)+'</span></span><i style="background:'+LAYER[i].color+'"></i></button>').join('');
+ $('#tl-god').innerHTML=tlGodDays(y).map(g=>'<button type="button" class="moon-btn'+(g===today?' now':'')+'" data-act="tlDay" data-iso="'+g+'" aria-pressed="'+(iso===g)+'"><b>'+(dayDiff(trueStart(y),g)+1)+'</b><span><span class="nm">DAY WITH GOD</span><span class="mn">'+shortDate(g)+' '+g.slice(0,4)+' · covenant</span></span><i style="background:#FFC93C"></i></button>').join('');
+ if(t.god){
+  $('#tl-head').innerHTML='<div class="mh-n">DAY '+t.td+' · OUTSIDE THE 13 MOONS · '+esc(nice(iso)).toUpperCase()+'</div><div class="mh-name">DAY WITH GOD</div><div class="mh-sub">No system. No schedule. You are not scheduled today. s\'dla sonke, s\'fa sonke.</div>';
+  $('#tl-grid').innerHTML='';
+ }else{
+  const M=TMOONS[t.m];
+  $('#tl-head').innerHTML='<div class="mh-n">MOON '+(t.m+1)+' OF 13 · '+(v8?M.name:LAYER[t.m].eth)+' · DAY '+t.d+' OF 28 · '+esc(nice(iso)).toUpperCase()+'</div><div class="mh-name">'+(v8?LAYER[t.m].eth:M.name)+'</div><div class="mh-sub">'+esc(v8?LAYER[t.m].brand+' · '+LAYER[t.m].anime+' · '+LAYER[t.m].theme:M.moonName+' · '+M.theme)+'</div>';
+  let h='';WEEKS.forEach((w,wi)=>{h+='<div class="lw"><div class="lw-l">'+w[1]+' '+w[0]+'</div><div class="lw-d">';for(let k=1;k<=7;k++){const d=wi*7+k,g=tlToGreg(y,t.m,d);h+='<button type="button" class="dbtn'+(g===today?' today':'')+(state.entries[g]?' has':'')+(inSprint(g)?' sprint':'')+'" data-act="tlDay" data-iso="'+g+'" aria-pressed="'+(g===iso)+'" aria-label="Day '+d+', '+esc(nice(g))+'"><b>'+d+'</b><small>'+shortDate(g)+'</small></button>'}h+='</div></div>'});
+  $('#tl-grid').innerHTML=h+'<p class="note" style="margin-top:4px">Gold outline: today · green dot: entry written · gold bar: sprint day</p>';
+ }
+ $('#tl-sacred').innerHTML=[['Gregorian',nice(iso)+' '+iso.slice(0,4)],['Ethiopian year',String(S.eth)],['Lunar phase',S.ph.icon+' '+S.ph.name+' · '+S.ph.pct+'% lit'],['Mayan Tzolkin',S.tz.n+' '+S.tz.sign+' · '+S.tz.meaning],S.num?['Numerology',(t.m+1)+' + '+t.d+' = '+S.num.raw+' → '+S.num.r+' · '+S.num.word+'. '+S.num.desc]:['Numerology','None today. No system.'],['Eastern',S.cn],['Western',S.wz]].map(r=>'<b>'+r[0]+'</b> · '+esc(r[1])).join('<br>');
+ const sp=allItems().filter(p=>dateOf(p)===iso);
+ $('#tl-rhythm').innerHTML=t.god?'<div class="list">No rhythm today. One instruction: be with God.</div>':RHYTHM.map(([tm,l])=>{const p=sp.find(x=>x.t===tm);return '<div class="rh'+(p?' post':'')+'"><b>'+tm+'</b><span>'+(p?esc(BR[p.b].name+' · '+p.hook):esc(l))+'</span>'+(p&&isPosted(p)?'<span class="tag ok">POSTED</span>':'')+'</div>'}).join('');
+ $('#tl-layer').innerHTML=t.god?'All 13 moons complete. Reflection and covenant. No posting.':'<b style="color:'+LAYER[t.m].color+'">'+LAYER[t.m].eth+'</b> · '+esc(LAYER[t.m].brand)+'<br>Anime arc: '+esc(LAYER[t.m].anime)+'<br>Theme: '+esc(LAYER[t.m].theme);
+ renderEntry();renderTlCard();
+}
+const EF=[['title','Title','i'],['opening','Opening','t'],['reflection','Reflection','t'],['practice','Practice','i'],['signal','Signal','i'],['hashtags','Hashtags','i']];
+function renderEntry(){
+ const iso=state.tl.iso,S=sacred(iso),e=state.entries[iso],el=$('#tl-entry'),date='<div class="e-date">'+esc(tlDateline(S))+'</div>';
+ if(state.tl.busy){el.innerHTML=date+'<div class="e-wait">RECEIVING SIGNAL…</div><div class="btns" style="justify-content:center"><button class="btn" data-act="tlStop">Stop</button></div>';return}
+ if(state.tl.edit){el.innerHTML=date+EF.map(([k,l,ty])=>{const v=e?e[k]||'':(k==='hashtags'?defaultTags(S):'');return '<label class="lbl" for="te-'+k+'">'+l+'</label>'+(ty==='t'?'<textarea class="ctrl" id="te-'+k+'" style="min-height:'+(k==='reflection'?220:80)+'px">'+esc(v)+'</textarea>':'<input class="ctrl" id="te-'+k+'" maxlength="'+(k==='title'?60:k==='signal'?80:300)+'" value="'+esc(v)+'">')}).join('')+'<div class="btns"><button class="btn teal" data-act="tlSave">Save entry</button><button class="btn" data-act="tlCancel">Cancel</button></div>';return}
+ if(!e){el.innerHTML=date+'<p class="e-open" style="color:var(--dim)">'+(S.t.god?'The day it is written you will simply be.':'No entry for this day yet.')+'</p><div class="btns">'+(smp?'<button class="btn gold" data-act="tlGen">'+(S.t.god?'Generate Day with God':'Generate entry')+'</button>':'')+'<button class="btn" data-act="tlEdit">Write it yourself</button></div>'+(smp?'':'<p class="note">Generating asks Claude, which works on the published page on claude.ai. You can always write the entry yourself.</p>');return}
+ el.innerHTML=date+'<div class="e-title">'+esc(e.title)+'</div><div class="e-open">'+esc(e.opening)+'</div>'+(e.reflection?'<div class="e-body">'+esc(e.reflection)+'</div>':'')+(e.practice?'<div class="e-prac"><b>PRACTICE</b>'+esc(e.practice)+'</div>':'')+(e.signal?'<div class="e-signal">'+esc(e.signal)+'</div>':'')+'<div class="e-tags">'+esc(e.hashtags||'')+'</div><div class="btns" style="justify-content:center"><button class="btn teal" data-act="tlCopy">Copy caption</button><button class="btn" data-act="tlEdit">Edit</button>'+(smp?'<button class="btn" data-act="tlGen">Regenerate</button>':'')+'</div><div class="share" style="justify-content:center">'+tlShare(e)+'</div>';
+}
+function tlPrompt(S){
+ const t=S.t,ds=new Date(S.iso+'T00:00:00Z').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'UTC'});
+ const orig='Draw on the spirit and themes of Marianne Williamson\'s "A Year of Miracles", but write entirely in your own words: never quote, paraphrase or reproduce any passage from that book.';
+ if(t.god)return 'You are writing the most sacred entry in the Taluna Calendar – Maktoof (it is written): the devotional for THE DAY WITH GOD.\n\nThis is Day '+t.td+'. The day outside the 13 moons. The pause written into creation itself. The Taluna Calendar: 13 moons x 28 days = 364. And 3+6+4=13. This final day belongs to God.\n\nCONTEXT:\n- Date: '+ds+' · Ethiopian Year '+S.eth+'\n- The Maya called this the Day Out of Time; Ethiopia\'s Pagume holds the same truth\n- Lunar phase: '+S.ph.name+'\n- Mayan Tzolkin: '+S.tz.n+' '+S.tz.sign+' — '+S.tz.meaning+'\n\nThis day holds no numerology. No system. No tasks. One instruction only: be with God.\n\n'+orig+' The miracle today is not doing, it is being. Voice: dantalan\'s, stripped to its quietest. Sacred. Still. True.\n\nReturn ONLY valid JSON, no markdown:\n{"title":"3-4 words. Sacred, still.","opening":"One sentence. The most surrendered thing to say today.","reflection":"2 paragraphs separated by \\n\\n. Slow.","practice":"One practice. God-directed. Starts with a verb.","signal":"6 words max. Gentlest signal of the year.","hashtags":"'+defaultTags(S)+'"}';
+ const M=TMOONS[t.m];
+ return 'You are writing a daily devotional for dantalan, philosopher-brand, philosophy of ONE.\n\nTALUNA CALENDAR – MAKTOOF: Time anchored in Creation, Moon, Stars, grounded on Earth. 13 moons x 28 days = 364. And 3+6+4=13. Numbers don\'t lie.\n\nSACRED TIME TODAY:\n- Moon: '+M.moonName+' · '+M.name+' ('+(t.m+1)+' of 13), Day '+t.d+' of 28 ('+WEEKS[Math.floor((t.d-1)/7)][0].toLowerCase()+' week)\n- Gregorian: '+ds+' · Ethiopian Year: '+S.eth+'\n- Lunar phase: '+S.ph.name+' ('+S.ph.pct+'% illuminated)\n- Mayan Tzolkin: '+S.tz.n+' '+S.tz.sign+' — '+S.tz.meaning+'\n- Numerology: '+S.num.raw+' → '+S.num.r+' ('+S.num.word+') — '+S.num.desc+'\n- Eastern astrology: '+S.cn+' · Western astrology: '+S.wz+'\n- Moon theme: '+M.theme+'\n\n'+orig+' Let all sacred layers breathe through invisibly. Voice: dantalan\'s — terse, declarative, present. Truth only.\n\nReturn ONLY valid JSON, no markdown:\n{"title":"3-5 word title","opening":"One sentence threshold. Make it land.","reflection":"2-3 paragraphs separated by \\n\\n. Present tense.","practice":"One practice. Starts with a verb.","signal":"8 words max. Unforgettable.","hashtags":"'+defaultTags(S)+'"}';
+}
+let tlCtl=null;
+async function tlGenerate(){
+ if(!smp||state.tl.busy)return;const iso=state.tl.iso,S=sacred(iso);
+ tlCtl=new AbortController();state.tl.busy=true;state.tl.edit=false;renderEntry();
+ try{
+  const r=await smp.json(tlPrompt(S),{signal:tlCtl.signal,cache:false});
+  const e={};EF.forEach(([k])=>e[k]=String(r&&r[k]!=null?r[k]:'').trim());
+  if(!e.title||!e.opening)throw{code:'invalid_json'};
+  if(!e.hashtags)e.hashtags=defaultTags(S);
+  Object.assign(e,{iso,generated:Date.now(),source:'claude'});putEntry(iso,e);toast('Signal received');
+ }catch(err){const c=err&&err.code;
+  if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(c)){smp=null;toast('Claude isn\'t available in this view. Write the entry yourself.')}
+  else if(c==='cancelled'){}else if(c==='rate_limited')toast('Too many requests. Try again in a minute.');else if(c==='invalid_json')toast('The answer came back malformed. Try again.');else if(c==='refused')toast('Claude declined that one. Try again or write it yourself.');else toast('No signal ('+(c||'error')+'). Try again.')}
+ finally{state.tl.busy=false;tlCtl=null;if(state.tab==='taluna')renderTaluna();else renderSoon()}
+}
+const TL_MARK={parts:[{t:'_tal',c:'acc'},{t:'una',c:'fg'}]};
+const FT={cin:(w,s)=>w+' '+s+'px Cinzel, Georgia, serif',cor:(st,s)=>st+' '+s+'px "Cormorant Garamond", Georgia, serif'};
+function capFirst(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function drawTlCard(cv,iso,fmt,ground,scale){
+ const f=FMT[fmt];scale=scale||1;cv.width=Math.round(f.w*scale);cv.height=Math.round(f.h*scale);
+ const ctx=cv.getContext('2d');ctx.setTransform(scale,0,0,scale,0,0);
+ const S=sacred(iso),t=S.t,col=t.god?'#FFC93C':LAYER[t.m].color,P=palette(ground,col),W=f.w,H=f.h,wide=fmt==='link',tall=fmt==='story';
+ const e=state.entries[iso]||(t.god?{title:'Day with God',opening:'The day it is written you will simply be.',signal:"s'dla sonke, s'fa sonke"}:{title:TMOONS[t.m].name,opening:TMOONS[t.m].moonName+'. '+capFirst(TMOONS[t.m].theme)+'.',signal:'Day '+t.d+' of 28'});
+ ctx.fillStyle=P.bg;ctx.fillRect(0,0,W,H);
+ const gc=ground==='brand'?P.fg:col,g=ctx.createRadialGradient(W*.82,H*.12,0,W*.82,H*.12,Math.max(W,H)*.85);g.addColorStop(0,rgba(gc,ground==='plaster'?.12:.20));g.addColorStop(1,rgba(gc,0));ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ const pad=Math.round(Math.min(W,H)*0.075),ms=wide?40:tall?60:48,tW=W-pad*2;
+ drawMark(ctx,pad,pad+ms*0.9,ms,TL_MARK,P,W*0.4);
+ ctx.font=F.mono(500,wide?16:tall?24:20);ctx.fillStyle=P.mute;ctx.textAlign='right';ctx.fillText(t.god?'DAY WITH GOD · '+t.td:'MOON '+(t.m+1)+' · DAY '+t.d,W-pad,pad+ms*0.75);ctx.textAlign='left';
+ ctx.font=F.mono(500,wide?14:tall?21:17);ctx.fillText(ell(ctx,((t.god?'OUTSIDE THE 13 MOONS':TMOONS[t.m].moonName)+' · '+S.ph.name+' · '+shortDate(iso)+' '+iso.slice(0,4)).toUpperCase(),tW),pad,pad+ms*0.9+(wide?30:tall?48:40));
+ const oneS=wide?24:tall?34:30,bottom=H-pad,footY=bottom-oneS*1.9;
+ const sigS=wide?24:tall?40:32;ctx.font=FT.cin(600,sigS);const sigL=wrap(ctx,e.signal||'',tW).slice(0,2);const sigTop=footY-(wide?22:34)-sigL.length*sigS*1.25;
+ let ts=wide?42:tall?76:60;ctx.font=FT.cin(700,ts);let tl=wrap(ctx,String(e.title||'').toUpperCase(),tW);while(tl.length>(wide?2:3)&&ts>24){ts-=2;ctx.font=FT.cin(700,ts);tl=wrap(ctx,String(e.title||'').toUpperCase(),tW)}
+ let y=wide?H*0.36:tall?H*0.24:H*0.30;ctx.fillStyle=P.fg;tl.forEach(l=>{ctx.fillText(l,pad,y);y+=ts*1.14});
+ ctx.fillStyle=P.acc;ctx.fillRect(pad,y-ts*0.35,wide?50:80,wide?3:4);y+=wide?26:tall?56:42;
+ const os=wide?22:tall?38:31,lh=os*1.34;ctx.font=FT.cor('italic 400',os);
+ let body=String(e.opening||'');if(!wide&&e.reflection)body+='\n\n'+(tall?String(e.reflection):String(e.reflection).split(/\n\s*\n/)[0]);
+ const lines=[];body.split(/\n\s*\n/).forEach((para,pi)=>{if(pi)lines.push('');wrap(ctx,para,tW).forEach(l=>lines.push(l))});
+ const maxY=sigTop-lh*0.6;let n=0,yy=y;while(n<lines.length&&yy+(lines[n]===''?lh*0.5:0)<=maxY){yy+=lines[n]===''?lh*0.5:lh;n++}
+ const shown=lines.slice(0,n);if(n<lines.length&&shown.length){let k=shown.length-1;while(k>0&&shown[k]==='')k--;shown.length=k+1;shown[k]=ell(ctx,shown[k]+' '+lines[n],tW)}
+ ctx.fillStyle=P.fg;shown.forEach(l=>{if(l===''){y+=lh*0.5;return}ctx.fillText(l,pad,y);y+=lh});
+ if(tall&&e.practice&&y+lh*2.8<maxY){y+=lh*0.4;ctx.font=F.mono(500,22);ctx.fillStyle=P.acc;ctx.fillText('PRACTICE',pad,y);y+=lh*0.95;ctx.font=FT.cor('400',34);ctx.fillStyle=P.fg;wrap(ctx,e.practice,tW).slice(0,3).forEach(l=>{if(y<maxY){ctx.fillText(l,pad,y);y+=34*1.34}})}
+ ctx.font=FT.cin(600,sigS);ctx.fillStyle=P.acc;ctx.textAlign='center';let sy=sigTop+sigS;sigL.forEach(l=>{ctx.fillText(l,W/2,sy);sy+=sigS*1.25});ctx.textAlign='left';
+ ctx.font=F.mono(500,wide?13:tall?20:16);ctx.fillStyle=P.mute;ctx.fillText('TALUNA CALENDAR – MAKTOOF · ETHIOPIAN YEAR '+S.eth,pad,footY);
+ drawRule(ctx,pad,W-pad-oneS*3.8,bottom-oneS*0.36,oneS/24,P);drawOne(ctx,W-pad,bottom,oneS,P);
+}
+function renderTlCard(){
+ $('#tl-fmt').innerHTML=Object.entries(FMT).map(([k,v])=>'<button type="button" data-act="tlFmt" data-v="'+k+'" aria-pressed="'+(state.tl.fmt===k)+'">'+v.label+'</button>').join('');
+ $('#tl-ground').innerHTML=Object.entries(GROUNDS).map(([k,v])=>'<button type="button" data-act="tlGround" data-v="'+k+'" aria-pressed="'+(state.tl.ground===k)+'">'+v+'</button>').join('');
+ drawTlCard($('#tl-card'),state.tl.iso,state.tl.fmt,state.tl.ground,1);
+}
+function tlBlob(iso,fmt){const cv=document.createElement('canvas');drawTlCard(cv,iso,fmt,state.tl.ground,1);return new Promise(r=>cv.toBlob(r,'image/png'))}
+function tlName(iso,fmt){const t=tlFromGreg(iso);return fname(['taluna',iso,t.god?'day-with-god':'moon'+(t.m+1)+'-day'+t.d,fmt],'png')}
+async function zipTl(list,fmts,name){
+ if(typeof JSZip==='undefined'){toast('ZIP library didn\'t load. Save cards one at a time.');return}
+ toast('Rendering '+list.length*fmts.length+' cards…');const z=new JSZip();
+ const rows=[['File','Date','Moon','Day','Format','Title','Signal']];
+ for(const iso of list)for(const f of fmts){z.file(tlName(iso,f),await tlBlob(iso,f));const t=tlFromGreg(iso),e=state.entries[iso]||{};rows.push([tlName(iso,f),iso,t.god?'Day with God':(t.m+1)+' '+TMOONS[t.m].name,t.god?t.td:t.d,f,e.title||'',e.signal||''])}
+ z.file('manifest.csv',rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n');
+ saveFile(name,await z.generateAsync({type:'blob'}),'application/zip');
+}
+Object.assign(ACT_EXTRA,{
+ tlYear(el){const t=tlFromGreg(state.tl.iso),ny=t.y+(+el.dataset.v);state.tl.iso=t.god?addDays(trueStart(ny),364):tlToGreg(ny,t.m,t.d);state.tl.edit=false;renderTaluna()},
+ tlMoon(el){const t=tlFromGreg(state.tl.iso);state.tl.iso=tlToGreg(t.y,+el.dataset.m,t.god?1:t.d);state.tl.edit=false;renderTaluna()},
+ tlDay(el){state.tl.iso=el.dataset.iso;state.tl.edit=false;renderTaluna()},
+ tlToday(){state.tl.iso=todayISO();state.tl.edit=false;if(state.tab==='taluna')renderTaluna()},
+ tlGen(el){const iso=state.tl.iso;if(state.entries[iso]&&!armed.gen){el.textContent='Tap again to replace';armed.gen=setTimeout(()=>{delete armed.gen;el.textContent='Regenerate'},3000);return}if(armed.gen){clearTimeout(armed.gen);delete armed.gen}tlGenerate()},
+ tlStop(){if(tlCtl)tlCtl.abort()},
+ tlEdit(){state.tl.edit=true;renderEntry();const f=$('#te-title');if(f)f.focus()},
+ tlCancel(){state.tl.edit=false;renderEntry()},
+ tlSave(){const iso=state.tl.iso,prev=state.entries[iso]||{},e={};EF.forEach(([k])=>{const f=$('#te-'+k);e[k]=f?f.value.trim():''});if(!e.title&&!e.opening){toast('Add at least a title or an opening');return}Object.assign(e,{iso,generated:prev.generated||null,source:prev.source||'you',edited:Date.now()});state.tl.edit=false;if(document.activeElement)document.activeElement.blur();putEntry(iso,e);renderEntry();renderTlCard();toast('Entry saved')},
+ tlCopy(){const e=state.entries[state.tl.iso];if(e)copy(entryCaption(e),'Caption copied')},
+ tlFmt(el){state.tl.fmt=el.dataset.v;renderTlCard()},
+ tlGround(el){state.tl.ground=el.dataset.v;renderTlCard()},
+ async tlPng(){const iso=state.tl.iso;saveFile(tlName(iso,state.tl.fmt),await tlBlob(iso,state.tl.fmt),'image/png')},
+ tlFormats(){const iso=state.tl.iso;zipTl([iso],Object.keys(FMT),fname(['taluna',iso,'all-formats'],'zip'))},
+ tlMoonZip(){const t=tlFromGreg(state.tl.iso);const list=t.god?tlGodDays(t.y):Array.from({length:28},(_,i)=>tlToGreg(t.y,t.m,i+1));zipTl(list,[state.tl.fmt],fname(['taluna',t.y,t.god?'day-with-god':'moon'+(t.m+1)+'-'+TMOONS[t.m].name.toLowerCase(),state.tl.fmt],'zip'))}
+});
+
+/* ---------------- exports ---------------- */
+function sastToUtc(date,time){const[h,mi]=time.split(':').map(Number);return new Date(Date.UTC(+date.slice(0,4),+date.slice(5,7)-1,+date.slice(8,10),h-2,mi))}
+function icsDate(d){return d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}
+function icsEsc(s){return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n')}
+function fold(line){const out=[];let s=line;while(s.length>73){out.push(s.slice(0,73));s=' '+s.slice(73)}out.push(s);return out.join('\r\n')}
+function buildICS(){
+ const now=icsDate(new Date());const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//sigsche.co.za//sigsche '+VER+'//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:sigsche · _locare sprint','X-WR-TIMEZONE:Africa/Johannesburg'];
+ allItems().filter(p=>/^\d{4}-\d{2}-\d{2}$/.test(dateOf(p)||'')&&/^\d\d:\d\d$/.test(p.t||'')).forEach(p=>{const st=sastToUtc(dateOf(p),p.t),en=new Date(st.getTime()+15*60000);L.push('BEGIN:VEVENT','UID:'+p.id+'-'+state.settings.start+'@sigsche.co.za','DTSTAMP:'+now,'DTSTART:'+icsDate(st),'DTEND:'+icsDate(en),'SUMMARY:'+icsEsc(p.t+' '+BR[p.b].name+' · '+p.hook),'DESCRIPTION:'+icsEsc(caption(p)),'URL:'+(link(p)||'https://'+SITE),'END:VEVENT')});
+ L.push('END:VCALENDAR');return L.map(fold).join('\r\n')+'\r\n';
+}
+function buildQueue(){
+ const P=allItems().filter(p=>!isPosted(p)&&/^\d{4}-\d{2}-\d{2}$/.test(dateOf(p)||'')&&/^\d\d:\d\d$/.test(p.t||''));
+ const q=P.map(p=>{const st=sastToUtc(dateOf(p),p.t);return{id:p.id,date:dateOf(p),time:p.t,day:p.custom?null:p.d+1,brand:BR[p.b].name,ref:BR[p.b].ref,title:p.hook,card_line:p.sub,body:caption(p),cta:link(p),tags:tags(p),kind:p.k,media:p.media||'image',platforms:platsOf(p),status:'queued',card_file:cardName(p,'square'),start:new Date(st.getTime()+2*3600e3).toISOString().replace('Z','+02:00').replace('.000',''),start_utc:st.toISOString()}});
+ return JSON.stringify({product:PRODUCT,site:SITE,version:VER,file:fname(['queue',todayISO()],'json'),cards:'card_file names match the cards saved from the Cards tab',generated:new Date().toISOString(),target:TARGET,timezone:TZ,start:state.settings.start,days:8,slots:['08:17','12:12','19:19','11:11 (day 2 only)'],total:q.length,pricing:{Starter:6916,Growth:14490,Scale:25415,Growth_ex_vat:12600,partner_rate:0.26},queue:q,events:q.map(x=>({date:x.date,time:x.time,brand:x.brand,title:x.title,body:x.body,start:x.start,end:new Date(Date.parse(x.start_utc)+15*60000).toISOString()}))},null,2);
+}
+function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function buildCSV(){const rows=[['Company','Contact Name','Phone','Email','City','Units','Plan','Status','Notes','Demo link']];leadsArr().forEach(l=>rows.push([l.agency,l.contact,l.phone,l.email,l.city,l.units,l.plan,l.stage,l.notes,'https://locare.co.za/demo?ref=_locare&src=close']));return rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n'}
+
+/* ---------------- actions ---------------- */
+const STAMP={Messaged:'messagedAt',Replied:'repliedAt','Demo booked':'demoAt',Pilot:'pilotAt',Signed:'signedAt',Lost:'lostAt'};
+function setStage(l,stage){const n=Object.assign({},l,{stage,updated:Date.now()});const idx=STAGES.indexOf(stage);if(stage!=='Lost')STAGES.slice(1,idx+1).forEach(s=>{if(STAMP[s]&&!n[STAMP[s]])n[STAMP[s]]=Date.now()});else if(!n.lostAt)n.lostAt=Date.now();return n}
+const armed={};function twoTap(btn,key,label,fn){if(armed[key]){clearTimeout(armed[key]);delete armed[key];fn();return}btn.textContent=label;armed[key]=setTimeout(()=>{delete armed[key];btn.textContent='Delete'},3000)}
+async function zipCards(list,fmts,name){
+ if(typeof JSZip==='undefined'){toast('ZIP library didn\'t load. Save cards one at a time.');return}
+ toast('Rendering '+list.length*fmts.length+' cards…');const z=new JSZip();
+ const rows=[['File','Brand','Date','Time','Format','Headline','Link','Caption']];
+ for(const p of list)for(const f of fmts){z.file(cardName(p,f),await cardBlob(p,f,state.ground));rows.push([cardName(p,f),BR[p.b].name,dateOf(p),p.t,f,p.hook,link(p),caption(p)])}
+ z.file('manifest.csv',rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n');
+ saveFile(name,await z.generateAsync({type:'blob'}),'application/zip');
+}
+const ACT={
+ copyCap(el){const id=el.closest('[data-id]').dataset.id;copy(caption(post(id)),'Caption copied')},
+ async saveCard(el){const p=post(el.closest('[data-id]').dataset.id);saveFile(cardName(p,'square'),await cardBlob(p,'square',state.ground),'image/png')},
+ togglePosted(el){const id=el.closest('[data-id]').dataset.id,e=Object.assign({},state.edits[id]||{});if(e.posted){e.posted=false;e.postedAt=null}else{e.posted=true;e.postedAt=Date.now()}putEdit(id,e);toast(e.posted?'Marked posted':'Marked not posted')},
+ saveEdit(el){const art=el.closest('[data-id]'),id=art.dataset.id,base=POST_BY_ID[id],e=Object.assign({},state.edits[id]||{});['hook','sub','body'].forEach(f=>{const v=art.querySelector('[data-f="'+f+'"]').value.trim();if(v&&v!==base[f])e[f]=v;else delete e[f]});document.activeElement&&document.activeElement.blur();putEdit(id,e);toast('Saved')},
+ resetEdit(el){const id=el.closest('[data-id]').dataset.id,e=Object.assign({},state.edits[id]||{});delete e.hook;delete e.sub;delete e.body;putEdit(id,e);toast('Copy reset')},
+ day(el){state.day=+el.dataset.day;renderPosts()},
+ fmt(el){state.fmt=el.dataset.v;renderCards()},
+ ground(el){state.ground=el.dataset.v;renderCards()},
+ pick(el){state.cardPost=el.dataset.id;renderCards();window.scrollTo({top:0,behavior:'smooth'})},
+ async cardPng(){const p=post(state.cardPost);saveFile(cardName(p,state.fmt),await cardBlob(p,state.fmt,state.ground),'image/png')},
+ cardFormats(){const p=post(state.cardPost);zipCards([p],Object.keys(FMT),'locare-v9_'+p.id+'_all-formats.zip')},
+ cardDay(){const d=post(state.cardPost).d;zipCards(posts().filter(p=>p.d===d),[state.fmt],'locare-v9_day'+(d+1)+'_'+state.fmt+'.zip')},
+ cardAll(){zipCards(posts(),[state.fmt],'locare-v9_all-25_'+state.fmt+'.zip')},
+ copyScript(el){const l=state.leads[el.dataset.id];if(l)copy(script(l),'Message copied')},
+ waOpen(el){const l=state.leads[el.dataset.id];if(l&&l.stage==='New')putLead(setStage(l,'Messaged'))},
+ delLead(el){const id=el.closest('[data-id]').dataset.id;twoTap(el,'del'+id,'Tap again',()=>{dropLead(id);toast('Deleted')})},
+ basis(el){state.basis=el.dataset.v;renderPartner()},
+ copyPartner(){copy($('#p-link').value,'Partner link copied')},
+ bible(){saveFile(fname(['baatjie-node-one','series-bible'],'txt'),bibleText(),'text/plain')},
+ bibleCopy(){copy(bibleText(),'Bible copied')},
+ ics(){saveFile(fname(['calendar',state.settings.start,'to',addDays(state.settings.start,7)],'ics'),buildICS(),'text/calendar')},
+ queue(){saveFile(fname(['queue',todayISO()],'json'),buildQueue(),'application/json')},
+ csv(){if(!leadsArr().length){toast('No leads yet');return}saveFile(fname(['leads-close',todayISO()],'csv'),buildCSV(),'text/csv')},
+ backup(){saveFile(fname(['backup',todayISO()],'json'),JSON.stringify({product:PRODUCT,site:SITE,version:VER,file:fname(['backup',todayISO()],'json'),saved:new Date().toISOString(),settings:state.settings,edits:state.edits,leads:state.leads,taluna:state.entries,signals:state.signals},null,2),'application/json')},
+ migrate(el){if(!db||!localHad)return;el.disabled=true;Object.values(localHad.leads||{}).forEach(l=>{if(!state.leads[l.id])putLead(l)});Object.entries(localHad.edits||{}).forEach(([id,e])=>{if(!state.edits[id]&&POST_BY_ID[id])putEdit(id,e)});Object.values(localHad.signals||{}).forEach(x=>{if(x&&x.id&&!state.signals[x.id])putSignal(x)});Object.entries(localHad.entries||{}).forEach(([iso,e])=>{if(!state.entries[iso]&&/^\d{4}-\d{2}-\d{2}$/.test(iso))putEntry(iso,e)});try{localStorage.removeItem(LS)}catch(e){}localHad=null;toast('Moved into the database');paintStore()},
+ mClose(){$('#modal').classList.remove('on');$('#m-body').innerHTML=''},
+ mSelect(){const t=$('#m-text');if(t){t.focus();t.select()}}
+};
+Object.assign(ACT_EXTRA,{
+ async platUp(el){
+  const art=el.closest('[data-id]'),p=item(art.dataset.id),pl=PLAT[el.dataset.pid];if(!p||!pl||el.dataset.busy)return;
+  el.dataset.busy='1';const old=el.textContent;el.textContent=pl.name+' …';
+  try{
+   const cv=document.createElement('canvas');drawCard(cv,p,'square',state.ground,1);const name=cardName(p,'square');
+   await api('/api/card','POST',{name,data:cv.toDataURL('image/png')});
+   const u=shareUrl(pl,p),r=await api('/api/upload','POST',Object.assign({pid:pl.id,itemId:p.id,caption:caption(p),cardName:name},/^https:\/\//.test(u)?{url:u}:{}));
+   toast(pl.name+': '+(r.posted?'posted'+(r.where?' → '+r.where:'')+'. ':'')+r.next,9000);lastPull='';pullLocal();
+  }catch(e){toast(pl.name+': '+e.message,8000)}
+  finally{delete el.dataset.busy;el.textContent=old}
+ },
+ async platLogin(el){const pl=PLAT[el.dataset.pid];try{await api('/api/login/'+pl.id,'POST',{});toast('Opened '+pl.name+' in the sigsche browser. Sign in there; it stays signed in.',6000);setTimeout(pullPlat,4000)}catch(e){toast(e.message,7000)}},
+ async platMark(el){const pid=el.dataset.pid,on=!(platInfo[pid]&&platInfo[pid].login==='marked');try{await api('/api/login/'+pid+'/mark','POST',{on});await pullPlat()}catch(e){toast(e.message)}},
+ platToken(el){const pid=el.dataset.pid,pl=PLAT[pid],f=apiFields[pid]||[];modal(pl.name+' · API token','Saved on this computer only. With a token saved, Upload posts to '+pl.name+' directly, card included.',f.map(x=>'<label class="lbl" for="tk-'+x.key+'">'+esc(x.label)+'</label><input class="ctrl" id="tk-'+x.key+'" data-tk="'+x.key+'" autocomplete="off" '+(/token|password|webhook/.test(x.key)?'type="password" ':'')+'placeholder="'+esc(x.hint)+'">').join('')+'<div class="btns"><button class="btn teal" data-act="tokSave" data-pid="'+pid+'">Save token</button><button class="btn red" data-act="tokRemove" data-pid="'+pid+'">Remove saved token</button></div>',false)},
+ async tokSave(el){const fields={};$$('#m-body [data-tk]').forEach(i=>fields[i.dataset.tk]=i.value.trim());try{await api('/api/secret/'+el.dataset.pid,'POST',{fields});ACT.mClose();toast('Token saved');pullPlat()}catch(e){toast(e.message,6000)}},
+ async tokRemove(el){try{await api('/api/secret/'+el.dataset.pid,'POST',{fields:null});ACT.mClose();toast('Token removed');pullPlat()}catch(e){toast(e.message)}},
+ impPick(){$('#imp').click()}
+});
+$('#imp').addEventListener('change',ev=>{
+ const f=ev.target.files&&ev.target.files[0];if(!f)return;const rd=new FileReader();
+ rd.onload=()=>{try{
+   const d=JSON.parse(String(rd.result));if(!d||typeof d!=='object'||!(d.settings||d.leads||d.edits||d.signals||d.taluna))throw new Error('not a sigsche backup');
+   let n=0;
+   if(d.settings){state.settings=Object.assign({},DEFAULT_SETTINGS,d.settings);putSettings();fillSettings()}
+   Object.entries(d.edits||{}).forEach(([id,e])=>{if(POST_BY_ID[id]){putEdit(id,e);n++}});
+   Object.values(d.leads||{}).forEach(l=>{if(l&&l.id){putLead(l);n++}});
+   Object.values(d.signals||{}).forEach(x=>{if(x&&x.id){putSignal(x);n++}});
+   Object.entries(d.taluna||{}).forEach(([iso,e])=>{if(/^\d{4}-\d{2}-\d{2}$/.test(iso)){putEntry(iso,e);n++}});
+   toast('Imported '+n+' records from '+f.name,5000);
+  }catch(e){toast('That file is not a sigsche backup ('+e.message+')',6000)}
+  ev.target.value='';};
+ rd.readAsText(f);
+});
+if(LOCAL){const q=$('#q-how');if(q)q.textContent='Each platform chip uploads there: it opens the post box in your signed-in sigsche browser with the card attached and the caption filled, and you press Post. Tick ✓ once it is up.'}
+Object.assign(ACT,ACT_EXTRA);
+document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;const fn=ACT[a.dataset.act];if(!fn)return;if(a.tagName!=='A')e.preventDefault();fn(a,e)});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')ACT.mClose()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on'))ACT.mClose()});
+document.addEventListener('change',e=>{
+ const el=e.target;
+ if(el.id==='card-post'){state.cardPost=el.value;renderCards();return}
+ if(el.id==='f-city'){state.fCity=el.value;renderOutreach();return}
+ if(el.id==='f-stage'){state.fStage=el.value;renderOutreach();return}
+ if(el.id==='l-city')$('#lead-form').dataset.touched='1';
+ if(el.dataset&&el.dataset.bz){const bc=el.closest('[data-biz]');if(bc){const bv=el.value.trim();putBiz(bc.dataset.biz,{[el.dataset.bz]:el.dataset.bz==='domain'?cleanDomain(bv)||bv:bv})}return}
+ if(el.dataset&&el.dataset.ph){setPlat(el.dataset.ph,{h:el.value.trim()});return}
+ const k=el.dataset&&el.dataset.chg;if(!k)return;const id=el.closest('[data-id]').dataset.id,l=state.leads[id];if(!l)return;
+ if(k==='stage')putLead(setStage(l,el.value));else{const n=Object.assign({},l,{updated:Date.now()});n[k]=el.value.trim();putLead(n)}
+});
+['#p-s','#p-g','#p-sc','#p-code'].forEach(id=>$(id).addEventListener('input',renderPartner));
+$('#lead-form').addEventListener('submit',e=>{
+ e.preventDefault();const v=id=>$(id).value.trim();const agency=v('#l-agency');if(!agency){toast('Agency name first');return}
+ const units=$('#l-units').value;const l={id:'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),agency,contact:v('#l-contact'),phone:v('#l-phone'),email:v('#l-email'),city:$('#l-city').value,units,plan:UNIT_PLAN[units]||'Growth',stage:'New',notes:v('#l-notes'),created:Date.now(),updated:Date.now()};
+ putLead(l);['#l-agency','#l-contact','#l-phone','#l-email','#l-notes'].forEach(id=>$(id).value='');$('#l-agency').focus();toast('Added '+agency);
+});
+function fillSettings(){const S=state.settings;$('#s-start').value=S.start;$('#s-sender').value=S.sender;$('#s-per').value=S.perDay;$('#s-demos').value=S.demos;$('#s-pilots').value=S.pilots;$('#s-proof').value=S.proofLabel}
+$('#settings-form').addEventListener('submit',e=>{
+ e.preventDefault();const S=state.settings,n=(id,d)=>Math.max(1,parseInt($(id).value,10)||d);
+ const start=$('#s-start').value;if(/^\d{4}-\d{2}-\d{2}$/.test(start))S.start=start;
+ S.sender=$('#s-sender').value.trim()||DEFAULT_SETTINGS.sender;S.perDay=n('#s-per',10);S.demos=n('#s-demos',6);S.pilots=n('#s-pilots',2);S.proofLabel=$('#s-proof').value.trim()||DEFAULT_SETTINGS.proofLabel;
+ state.day=null;putSettings();toast('Settings saved');
+});
+
+/* ---------------- business register (v13.1) ---------------- */
+const BIZ_F=[['domain','Domain'],['sector','What it does'],['entity','Owner entity'],['contact','Public contact'],['about','Description']];
+const BIZ_ALL=['domain','sector','entity','status','contact','about'];
+const BIZ_STATUS=['Idea','Building','Live','Parked'];
+const SITE0=Object.assign({},SITEOF);
+const BIZ_BUILTIN=new Set(Object.keys(BR));
+function bizRec(k){const s=(state.settings.biz||{})[k]||{};return Object.assign({domain:SITE0[k]||defaultDomain(k),sector:'',entity:'',status:'',contact:'',about:''},s,{domain:cleanDomain(s.domain)||SITE0[k]||defaultDomain(k)})}
+function bizOpen(k){const r=bizRec(k);return BIZ_ALL.filter(f=>!String(r[f]||'').trim())}
+function bizKeys(){return BGROUPS.reduce((a,g)=>a.concat(g[1]),[])}
+function bizSet(k){const g=BGROUPS.find(x=>x[1].includes(k));return g?g[0]:'Group'}
+function cleanDomain(v){v=String(v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');return /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v)?v:''}
+// Bring saved records into the live catalog: custom businesses become brands, saved domains become links.
+function applyBiz(){
+ const B=state.settings.biz||{};
+ Object.keys(B).forEach(k=>{const b=B[k];if(!b)return;
+  if(b.custom&&!BIZ_BUILTIN.has(k)&&/^[a-z0-9]{2,24}$/.test(k)&&/^[\w .'&|-]{2,40}$/.test(b.name||'')){
+   const c=/^#[0-9a-f]{6}$/i.test(b.color||'')?b.color:'#7DA2FF';
+   BR[k]={name:'_'+b.name,ref:'_'+k,color:c,parts:[{t:'_'+b.name,c:'acc'}]};GROUP.add(k);ROLE[k]=b.sector||b.name;
+   if(!BGROUPS[2][1].includes(k))BGROUPS[2][1].push(k)}
+  if(!BR[k])return;
+  const d=cleanDomain(b.domain);if(d)SITEOF[k]=d;else if(SITE0[k])SITEOF[k]=SITE0[k];else delete SITEOF[k]});
+ Object.keys(BR).forEach(k=>{if(!SITEOF[k]){const d=defaultDomain(k);if(d)SITEOF[k]=d}});
+}
+function putBiz(k,patch){const S=state.settings;S.biz=Object.assign({},S.biz,{[k]:Object.assign({},(S.biz||{})[k],patch)});applyBiz();putSettings()}
+function renderBusiness(){
+ state.bf=state.bf||'all';
+ const keys=bizKeys(),open=keys.filter(k=>bizOpen(k).length),fields=keys.reduce((n,k)=>n+bizOpen(k).length,0),mine=keys.filter(k=>!BIZ_BUILTIN.has(k)).length;
+ $('#biz-kpis').innerHTML=kpi(keys.length,'Businesses registered')+kpi((keys.length-open.length)+'/'+keys.length,'Records complete',(keys.length-open.length)/keys.length,'#2ECC8A')+kpi(fields,'Fields still open',null,fields?'#FFC93C':'#2ECC8A')+kpi(mine,'Added by you');
+ const filters=[['all','ALL',keys.length],['open','OPEN',open.length],['complete','COMPLETE',keys.length-open.length]].concat(BGROUPS.map(g=>[g[0],g[0].toUpperCase(),g[1].length]));
+ $('#biz-filter').innerHTML=filters.map(f=>'<button class="chip" data-act="bizFilter" data-v="'+esc(f[0])+'" aria-pressed="'+(state.bf===f[0])+'">'+esc(f[1])+' · '+f[2]+'</button>').join('');
+ const list=keys.filter(k=>state.bf==='all'||(state.bf==='open'?bizOpen(k).length>0:state.bf==='complete'?!bizOpen(k).length:bizSet(k)===state.bf));
+ $('#biz-grid').innerHTML=list.map(k=>{const r=bizRec(k),o=bizOpen(k),nm=BR[k].name,ab=nm.replace(/^_/,'').replace(/[^a-z0-9]/gi,'').slice(0,2).toUpperCase();
+  return '<div class="pcard'+(o.length?'':' on')+'" data-biz="'+k+'"><div class="ph"><span class="ptile" style="color:'+BR[k].color+'">'+esc(ab)+'</span><div class="tx"><b>'+esc(nm)+'</b><small>'+esc(bizSet(k))+' · '+(o.length?o.length+' open':'complete')+'</small></div>'+(BIZ_BUILTIN.has(k)?'':'<button class="btn" data-act="bizDel" data-k="'+k+'">Remove</button>')+'</div>'
+   +BIZ_F.map(f=>'<input class="ctrl" data-bz="'+f[0]+'" maxlength="'+(f[0]==='about'?200:80)+'" aria-label="'+esc(nm)+' '+f[1]+'" placeholder="'+f[1]+' · open" value="'+esc(r[f[0]]||'')+'">').join('')
+   +'<select class="ctrl" data-bz="status" aria-label="'+esc(nm)+' status"><option value="">Status · open</option>'+BIZ_STATUS.map(s=>'<option'+(r.status===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'}).join('')||'<div class="card empty">Nothing here.</div>';
+}
+Object.assign(ACT,{
+ bizFilter(el){state.bf=el.dataset.v;renderBusiness()},
+ bizDel(el){const k=el.dataset.k,used=Object.values(state.signals).filter(s=>s&&s.brand===k).length;
+  if(used){toast('Used by '+used+' signal'+(used>1?'s':'')+'. Delete those first.',4000);return}
+  twoTap(el,'bd'+k,'Tap again',()=>{const S=state.settings,B=Object.assign({},S.biz);delete B[k];S.biz=B;delete BR[k];delete ROLE[k];delete SITEOF[k];GROUP.delete(k);BGROUPS[2][1]=BGROUPS[2][1].filter(x=>x!==k);if(state.cmp&&state.cmp.brand===k)state.cmp.brand='locare';putSettings();toast('Business removed')})}
+});
+$('#biz-form').addEventListener('submit',e=>{
+ e.preventDefault();const name=$('#b-name').value.trim().replace(/^_+/,''),k=name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,24);
+ if(!/^[\w .'&|-]{2,40}$/.test(name)||k.length<2){toast("Name: 2 to 40 letters, digits, spaces or . ' & | -",4000);return}
+ if(BR[k]){toast(BR[k].name+' is already registered');return}
+ putBiz(k,{custom:true,name:name,color:$('#b-color').value});$('#b-name').value='';state.bf='open';toast('Added _'+name+'. Fill in its record.');
+});
+
+/* ---------------- godsview (v13.2) ---------------- */
+let gv=null,gvErr='',gvBusy=false;
+const GV_STATE={paid:['Paid','#2ECC8A'],part:['Part paid','#FFC93C'],behind:['Behind','#FF6B6B'],new:['New lease','#7DA2FF'],nolease:['No lease on record','#A7ACBD']};
+async function pullGods(){if(!LOCAL||gvBusy)return;gvBusy=true;try{gv=await api('/api/godsview');gvErr=''}catch(e){gvErr=(e&&e.message)||'tanOS did not answer'}gvBusy=false;if(state.tab==='godsview')renderGodsview()}
+function gvPlural(n,w){return n+' '+w+(n===1?'':'s')}
+function renderGodsview(){
+ const K=$('#gv-kpis'),G=$('#gv-grid'),F=$('#gv-foot');
+ if(!LOCAL){K.innerHTML='';F.textContent='';G.innerHTML='<div class="card empty">godsview reads tanOS through the master MCP, so it runs on the localhost build only.</div>';return}
+ if(!gv){K.innerHTML='';F.textContent='';G.innerHTML='<div class="card empty">'+(gvErr?'tanOS could not be read: '+esc(gvErr)+'. It will try again in 15 seconds.':'Reading tanOS…')+'</div>';if(!gvErr)pullGods();return}
+ const t=gv.totals;
+ K.innerHTML=kpi(t.occupied+'/'+t.rooms,'Rooms with a lease',t.rooms?t.occupied/t.rooms:0,'#2ECC8A')+kpi(t.paid+'/'+t.occupied,'Paid in full since the 28th',t.occupied?t.paid/t.occupied:0,'#2ECC8A')+kpi(t.behind,'Behind',null,t.behind?'#FF6B6B':'#2ECC8A')+kpi(R(t.received),'Received of '+R(t.expected),t.expected?t.received/t.expected:0)+kpi(t.open_tickets,'Open maintenance',null,t.open_tickets?'#FFC93C':null)+kpi(gv.days_to_rent_day,'Days to the next 28th');
+ G.innerHTML=gv.rooms.map(r=>{const s=GV_STATE[r.state]||GV_STATE.nolease,c=s[1];
+  return '<div class="pcard'+(r.state==='paid'?' on':'')+'"><div class="ph"><span class="ptile" style="color:'+c+'">'+esc(String(r.room_name).slice(0,2))+'</span><div class="tx"><b>'+esc(r.room_name)+'</b><small>'+esc(r.tenant||'no tenant on record')+'</small></div><span class="chip" style="color:'+c+';border-color:'+c+';cursor:default">'+s[0].toUpperCase()+'</span></div>'
+   +(r.state==='nolease'?'<div class="pf"><span>'+R(r.due)+' a month</span><span>capture the lease in tanOS</span></div>':'<div class="pf"><span>'+R(r.paid)+' of '+R(r.due)+'</span><span>'+(r.last_payment?'last paid '+esc(r.last_payment):'no payment on record')+'</span></div>')
+   +'<div class="pf"><span>'+gvPlural(r.notices,'notice')+' sent</span><span>'+gvPlural(r.open_tickets,'open ticket')+'</span></div></div>'}).join('')
+  ||'<div class="card empty">tanOS has no rooms for this property yet. godsview fills in the moment the rooms, leases and payments are captured there.</div>';
+ F.textContent=(gv.property?gv.property+' · ':'')+'read '+new Date(gv.at).toLocaleTimeString()+' · counting payments from '+gv.cycle_start+(gvErr?' · last refresh failed: '+gvErr:'');
+}
+setInterval(()=>{if(state.tab==='godsview')pullGods()},15000);
+window.addEventListener('hashchange',()=>{if(location.hash==='#godsview')pullGods()});
+
+/* ---------------- accounts: many handles per platform (v13.3) ---------------- */
+// Handles live in settings.acct, keyed by id. One per platform is primary, and the
+// primary's handle is mirrored into settings.plat[pid].h so the rest of sigsche,
+// which expects a single handle, keeps working. No passwords, ever.
+const ACCT_MAX=8;
+// v13.4: sign-in state per handle, read from the browser session each handle uses.
+let acctLogins={};
+function pullAcct(){if(!LOCAL)return;fetch('/api/accounts').then(r=>r.json()).then(j=>{acctLogins=j.logins||{};renderAccounts()}).catch(()=>{})}
+function acctSess(v){const s=String(v||'').trim().toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,24);return s||'main'}
+function acctBag(){return state.settings.acct||{}}
+function acctKey(v){let t=String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/[?#].*$/,'').replace(/\/+$/,'');if(t.indexOf('/')>=0){const p=t.split('/').filter(Boolean);t=p[p.length-1]||t}return t.replace(/^@/,'')}
+function acctAll(pid){
+ const B=acctBag(),out=[];
+ Object.keys(B).forEach(id=>{const r=B[id];if(!r||!PLAT[r.pid])return;
+  out.push({id:id,pid:r.pid,email:r.email||'',handle:r.handle||'',label:r.label||'',brand:r.brand||'',session:r.session||'main',on:r.on!==false,primary:r.primary===true,at:r.at||0,legacy:false})});
+ PLATFORMS.forEach(pl=>{const h=handleOf(pl.id);if(!h||out.some(a=>a.pid===pl.id))return;
+  out.push({id:pl.id+':0',pid:pl.id,email:'',handle:h,label:'saved before v13.3',brand:'',session:'main',on:true,primary:true,at:0,legacy:true})});
+ const ord=id=>{const i=PLATFORMS.findIndex(p=>p.id===id);return i<0?99:i};
+ out.sort((a,b)=>ord(a.pid)-ord(b.pid)||(b.primary?1:0)-(a.primary?1:0)||a.at-b.at);
+ return pid?out.filter(a=>a.pid===pid):out;
+}
+// Start from a bag that already holds any pre-v13.3 handle, so saving never loses one.
+function acctSeed(){const next=Object.assign({},acctBag());
+ acctAll().forEach(a=>{if(a.legacy&&!next[a.id])next[a.id]={pid:a.pid,email:'',handle:a.handle,label:'',brand:'',session:'main',on:true,primary:true,at:Date.now()}});
+ return next}
+function acctWrite(next,pid){
+ state.settings.acct=next;
+ const mine=Object.keys(next).filter(k=>next[k].pid===pid).sort((x,y)=>(next[x].at||0)-(next[y].at||0));
+ const prim=mine.filter(k=>next[k].primary===true)[0]||mine[0];
+ setPlat(pid,{h:prim?next[prim].handle:''});
+}
+const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function acctEmail(v){const e=String(v||'').trim().toLowerCase().slice(0,120);if(e&&!EMAIL_RE.test(e))throw new Error("'"+e+"' is not an email address.");return e}
+function acctAdd(pid,handle,label,brand,email){
+ const h=String(handle||'').replace(/[\r\n\t]+/g,' ').trim().slice(0,120);
+ let e;try{e=acctEmail(email)}catch(err){toast(err.message,4000);return}
+ if(!PLAT[pid]){toast('Pick a platform first');return}
+ if(!h&&!e){toast("Give an email, a username, or both",4000);return}
+ const mine=acctAll(pid);
+ if(mine.length>=ACCT_MAX){toast(PLAT[pid].name+' already holds '+ACCT_MAX+' handles, which is the limit',4000);return}
+ if(h&&mine.some(a=>acctKey(a.handle)===acctKey(h))){toast(h+' is already saved on '+PLAT[pid].name,4000);return}
+ const next=acctSeed(),id=pid+':'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+ next[id]={pid:pid,email:e,handle:h,label:String(label||'').trim().slice(0,40),brand:brand||'',session:'main',on:true,primary:mine.length===0,at:Date.now()};
+ acctWrite(next,pid);toast('Added '+(h||e)+' on '+PLAT[pid].name);
+}
+function acctPatch(id,patch){
+ const cur=acctAll().find(a=>a.id===id);if(!cur)return;
+ const next=acctSeed();
+ const base=next[id]||{pid:cur.pid,email:cur.email,handle:cur.handle,label:cur.label,brand:cur.brand,session:cur.session,on:cur.on,primary:cur.primary,at:cur.at||Date.now()};
+ if(patch.handle!==undefined){const h=String(patch.handle).replace(/[\r\n\t]+/g,' ').trim().slice(0,120);
+  if(!h&&!base.email){toast('An account needs an email or a username. Remove it instead.',4000);renderAccounts();return}
+  if(h&&Object.keys(next).some(k=>k!==id&&next[k].pid===cur.pid&&acctKey(next[k].handle)===acctKey(h))){toast(h+' is already saved there',4000);renderAccounts();return}
+  patch=Object.assign({},patch,{handle:h})}
+ if(patch.email!==undefined){let e;try{e=acctEmail(patch.email)}catch(err){toast(err.message,4000);renderAccounts();return}
+  if(!e&&!base.handle){toast('An account needs an email or a username. Remove it instead.',4000);renderAccounts();return}
+  patch=Object.assign({},patch,{email:e})}
+ if(patch.session!==undefined)patch=Object.assign({},patch,{session:acctSess(patch.session)});
+ next[id]=Object.assign({},base,patch);
+ if(patch.primary===true)Object.keys(next).forEach(k=>{if(next[k].pid===cur.pid)next[k]=Object.assign({},next[k],{primary:k===id})});
+ else if(!Object.keys(next).some(k=>next[k].pid===cur.pid&&next[k].primary===true))next[id]=Object.assign({},next[id],{primary:true});
+ acctWrite(next,cur.pid);
+}
+function acctRemove(id){
+ const cur=acctAll().find(a=>a.id===id);if(!cur)return;
+ const next=acctSeed(),wasPrimary=(next[id]||{}).primary===true;
+ delete next[id];
+ if(wasPrimary){const rest=Object.keys(next).filter(k=>next[k].pid===cur.pid).sort((x,y)=>(next[x].at||0)-(next[y].at||0));
+  if(rest[0])next[rest[0]]=Object.assign({},next[rest[0]],{primary:true})}
+ acctWrite(next,cur.pid);
+}
+function acctBrandOpts(sel){return '<option value=""'+(sel?'':' selected')+'>Any business</option>'+bizKeys().map(k=>'<option value="'+k+'"'+(sel===k?' selected':'')+'>'+esc(BR[k].name)+'</option>').join('')}
+function acctRow(a){
+ const sig=a.legacy?'<span class="tag">FROM v13.2</span>':'';
+ return '<div data-aid="'+esc(a.id)+'" style="border-top:1px solid var(--line);padding-top:9px;margin-top:9px;display:grid;gap:6px">'
+  +'<div class="pf" style="flex-wrap:wrap;gap:6px">'+(a.primary?'<span class="tag green">PRIMARY</span>':'')+(a.on?'':'<span class="tag">OFF</span>')+sig+(a.session!=='main'?'<span class="tag gold">SESSION '+esc(a.session.toUpperCase())+'</span>':'')+'</div>'
+  +'<input class="ctrl" data-ac="email" type="email" maxlength="120" aria-label="Email" placeholder="email" value="'+esc(a.email||'')+'">'
+  +'<input class="ctrl" data-ac="handle" maxlength="120" aria-label="Username" placeholder="@username or page link" value="'+esc(a.handle)+'">'
+  +'<input class="ctrl" data-ac="label" maxlength="40" aria-label="What this account is" placeholder="What it is, e.g. main page" value="'+esc(a.label)+'">'
+  +'<select class="ctrl" data-ac="brand" aria-label="Business this handle posts for">'+acctBrandOpts(a.brand)+'</select>'
+  +'<div class="pf" style="flex-wrap:wrap;gap:6px"><span style="display:flex;gap:5px;flex-wrap:wrap">'
+  +(a.primary?'':'<button class="btn" data-act="acctPrimary">Make primary</button>')
+  +'<button class="btn'+(a.on?' green':'')+'" data-act="acctOn" aria-pressed="'+a.on+'">'+(a.on?'On':'Off')+'</button>'
+  +'<button class="btn" data-act="acctSession">Session · '+esc(a.session)+'</button>'
+  +'<button class="btn" data-act="acctDel">Remove</button></span>'
+  +(LOCAL?'<button class="btn" data-act="acctLogin">Log in</button><span class="note">'+esc((acctLogins[a.id]||'unknown').replace(/_/g,' '))+'</span>':'')+'</div></div>';
+}
+function renderAccounts(){
+ state.af=state.af||'all';
+ const all=acctAll(),used=new Set(all.map(a=>a.pid)),off=all.filter(a=>!a.on).length,branded=all.filter(a=>a.brand).length;
+ const multi=PLATFORMS.filter(p=>acctAll(p.id).length>1).length;
+ $('#acct-kpis').innerHTML=kpi(all.length,'Handles saved')+kpi(used.size+'/33','Platforms with a handle',used.size/33,'#2ECC8A')+kpi(multi,'Platforms with more than one',null,multi?'#2ECC8A':'')+kpi(branded+' / '+off,'Tied to a business / switched off',null,off?'#FFC93C':'#2ECC8A');
+ const ps=$('#a-plat'),bs=$('#a-brand'),pv=ps.value,bv=bs.value;
+ ps.innerHTML=PLATFORMS.map(p=>{const n=acctAll(p.id).length;return '<option value="'+p.id+'"'+(pv===p.id?' selected':'')+'>'+esc(p.name)+(n?' · '+n:'')+'</option>'}).join('');
+ bs.innerHTML=acctBrandOpts(bv);
+ const groups=[['all','WITH A HANDLE',used.size],['multi','MORE THAN ONE',multi],['none','STILL EMPTY',PLATFORMS.length-used.size],['every','ALL 33',PLATFORMS.length]];
+ $('#acct-filter').innerHTML=groups.map(g=>'<button class="chip" data-act="acctFilter" data-v="'+g[0]+'" aria-pressed="'+(state.af===g[0])+'">'+g[1]+' · '+g[2]+'</button>').join('');
+ const list=PLATFORMS.filter(p=>{const n=acctAll(p.id).length;return state.af==='every'?true:state.af==='multi'?n>1:state.af==='none'?n===0:n>0});
+ $('#acct-grid').innerHTML=list.map(pl=>{const mine=acctAll(pl.id),info=LOCAL?(platInfo[pl.id]||{}):{};
+  return '<div class="pcard'+(mine.length?' on':'')+'" data-pid="'+pl.id+'"><div class="ph"><span class="ptile" style="color:'+pl.color+'">'+pl.abbr+'</span><div class="tx"><b>'+esc(pl.name)+'</b><small>'+(mine.length?mine.length+' of '+ACCT_MAX+' handles':'no handle yet')+' · '+(isOn(pl.id)?'posting on':'posting off')+'</small></div>'+(LOCAL&&info.login!=='no_web'?'<button class="btn" data-act="platLogin" data-pid="'+pl.id+'">Log in</button>':'')+'</div>'
+   +(mine.length?mine.map(acctRow).join(''):'<p class="note">Add one above and it becomes the primary handle for '+esc(pl.name)+'.</p>')+'</div>'}).join('')
+  ||'<div class="card empty">No handles saved yet. Add the first one above.</div>';
+}
+Object.assign(ACT,{
+ acctFilter(el){state.af=el.dataset.v;renderAccounts()},
+ acctPrimary(el){acctPatch(el.closest('[data-aid]').dataset.aid,{primary:true});toast('Primary handle set')},
+ acctOn(el){const id=el.closest('[data-aid]').dataset.aid,a=acctAll().find(x=>x.id===id);if(a)acctPatch(id,{on:!a.on})},
+ acctLogin(el){const a=acctAll().find(x=>x.id===el.closest('[data-aid]').dataset.aid);if(!a)return;
+  toast('Opening '+PLAT[a.pid].name+' in session '+a.session,4000);
+  fetch('/api/login/'+encodeURIComponent(a.pid),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session:a.session})})
+   .then(r=>r.json()).then(j=>{if(j.error)throw new Error(j.error);toast('Sign in in that window, then it updates here',5000);setTimeout(pullAcct,5000)})
+   .catch(e=>toast(String(e.message||e),6000))},
+ acctDel(el){const id=el.closest('[data-aid]').dataset.aid;twoTap(el,'ac'+id,'Tap again',()=>{acctRemove(id);toast('Handle removed')})},
+ acctSession(el){const id=el.closest('[data-aid]').dataset.aid,a=acctAll().find(x=>x.id===id);if(!a)return;
+  modal('Browser session','<p class="note">Which sigsche browser profile this handle signs in on. Each session is its own browser, so two handles on one platform can be signed in at once when they use different sessions.</p><input class="ctrl" id="m-session" maxlength="24" value="'+esc(a.session)+'">','Save',()=>{acctPatch(id,{session:$('#m-session').value});toast('Session saved')})}
+});
+$('#acct-form').addEventListener('submit',e=>{
+ e.preventDefault();acctAdd($('#a-plat').value,$('#a-handle').value,$('#a-label').value,$('#a-brand').value,$('#a-email').value);
+ $('#a-email').value='';$('#a-handle').value='';$('#a-label').value='';$('#a-email').focus();
+});
+// Inline edits on a saved account: email, username, what it is, and the business it posts for.
+document.addEventListener('change',e=>{const f=e.target.closest&&e.target.closest('[data-ac]');if(!f)return;
+ const id=f.closest('[data-aid]').dataset.aid,k=f.dataset.ac,patch={};
+ patch[k]=f.value;if(k==='label')patch.label=f.value;if(k==='brand')patch.brand=f.value;
+ try{acctPatch(id,patch)}catch(err){toast(String(err.message||err),5000)}});
+
+/* ---------------- routing & boot ---------------- */
+const TABS=['today','godsview','compose','platforms','accounts','business','taluna','posts','cards','outreach','partner','pricing','anime','export'];
+function route(){const h=(location.hash||'').replace('#','');state.tab=TABS.includes(h)?h:'today';$$('.tab').forEach(s=>s.classList.toggle('on',s.id==='tab-'+state.tab));$$('#nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+state.tab?'page':'false'));render()}
+window.addEventListener('hashchange',route);
+window.addEventListener('resize',paintHeader);
+renderStatic();fillSettings();route();
+if(document.fonts){Promise.all(['700 40px Syne','800 40px Syne','500 20px Manrope','600 20px Manrope','500 16px "IBM Plex Mono"','700 40px Cinzel','600 40px Cinzel','italic 400 30px "Cormorant Garamond"'].map(f=>document.fonts.load(f).catch(()=>{}))).then(()=>document.fonts.ready).then(()=>render())}
+window.addEventListener('load',()=>render());
+connect();
+setInterval(()=>{if(state.tab==='today'&&!editing())paintHeader()},60000);
+})();

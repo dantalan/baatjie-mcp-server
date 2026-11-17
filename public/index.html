@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sigsche v13.5 · sigsche.co.za</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&family=Manrope:wght@500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="/vendor/qrcode-generator-1.4.4.min.js"></script>
+<script src="/vendor/jszip-3.10.1.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#040B0F;--s1:#08141C;--s2:#0B1C27;--s3:#102636;--teal:#00D4FF;--gold:#FFC93C;--green:#2ECC8A;--red:#FF7A7A;--text:#D6ECF4;--dim:#86A2B0;--mute:#3E5A6A;--line:rgba(0,212,255,.16);--line2:rgba(0,212,255,.36);--r:10px}
+html{font-size:13px}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',ui-monospace,monospace;line-height:1.55;min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--teal)}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+#top{position:sticky;top:0;z-index:30;background:rgba(4,11,15,.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:stretch;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;padding:10px 16px;border-right:1px solid var(--line)}
+.logo b{font-family:Cinzel,serif;letter-spacing:5px;color:var(--teal);font-size:15px}
+.logo small{font-size:10px;color:var(--dim);letter-spacing:2px}
+.stats{display:flex;flex-wrap:wrap;flex:1}
+.stat{padding:8px 14px;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;min-width:96px}
+.stat b{font-size:13px;color:var(--teal);font-variant-numeric:tabular-nums}
+.stat span{font-size:9.5px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+.store{display:flex;align-items:center;padding:8px 14px;font-size:10px;letter-spacing:1px;color:var(--dim)}
+.store i{width:8px;height:8px;border-radius:50%;background:var(--mute);display:inline-block;margin-right:7px}
+.store.db i{background:var(--green);box-shadow:0 0 10px var(--green)}
+.store.local i{background:var(--gold)}
+#nav{position:sticky;top:var(--toph,52px);z-index:20;background:rgba(4,11,15,.93);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;overflow-x:auto;scrollbar-width:none}
+#nav::-webkit-scrollbar{display:none}
+#nav a{flex:none;text-decoration:none;color:var(--dim);padding:13px 16px;font-size:11px;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid transparent}
+#nav a[aria-current="page"]{color:var(--teal);border-bottom-color:var(--teal);background:rgba(0,212,255,.06)}
+main{max-width:1280px;margin:0 auto;padding:18px 16px 80px}
+.tab{display:none}.tab.on{display:block}
+h2{font-family:Cinzel,serif;font-size:15px;letter-spacing:3px;color:var(--teal);margin-bottom:4px}
+h3{font-size:12px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:10px}
+.sub{color:var(--dim);font-size:11.5px;margin-bottom:16px;max-width:90ch}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card.gold{border-color:rgba(255,201,60,.32);background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(255,201,60,.07))}
+.grid2{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.stack{display:grid;gap:14px;align-content:start}
+.lbl{display:block;font-size:10px;letter-spacing:1.8px;color:var(--dim);text-transform:uppercase;margin:10px 0 5px}
+.ctrl{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-size:12.5px;min-width:0}
+.ctrl:focus{border-color:var(--line2);background:var(--s2)}
+textarea.ctrl{min-height:118px;resize:vertical;line-height:1.55}
+.btn{background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:8px 12px;font-size:11px;letter-spacing:1px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--line2)}
+.btn.teal{border-color:var(--teal);color:var(--teal);background:rgba(0,212,255,.1)}
+.btn.gold{border-color:var(--gold);color:var(--gold);background:rgba(255,201,60,.1)}
+.btn.green{border-color:var(--green);color:var(--green);background:rgba(46,204,138,.1)}
+.btn.red{color:var(--red)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btns{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.tag{font-size:9.5px;letter-spacing:1.5px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tag.ok{border-color:var(--green);color:var(--green)}
+.tag.gold{border-color:var(--gold);color:var(--gold)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--s1);border:1px solid var(--line);border-radius:9px;padding:12px}
+.kpi b{display:block;font-size:20px;color:var(--teal);font-variant-numeric:tabular-nums}
+.kpi span{font-size:10px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+.bar{height:4px;background:var(--s3);border-radius:2px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{background:transparent;border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:10.5px;letter-spacing:1px;color:var(--dim);cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--teal);color:var(--teal);background:rgba(0,212,255,.1)}
+.chip.today{border-color:var(--gold)}
+.post{display:grid;grid-template-columns:200px minmax(0,1fr);gap:14px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.post.done{border-color:rgba(46,204,138,.45)}
+@media(max-width:700px){.post{grid-template-columns:minmax(0,1fr)}}
+.pthumb canvas{width:100%;height:auto;border-radius:6px;display:block;background:var(--bg)}
+.pmeta{font-size:11.5px;color:var(--dim);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pmeta b{color:var(--gold);font-size:13px}
+.share{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:10.5px}
+.share a{color:var(--dim);text-decoration:none;border:1px solid var(--line);border-radius:20px;padding:4px 10px}
+.share a:hover{color:var(--teal);border-color:var(--line2)}
+.mini{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--s2);margin-bottom:6px}
+.mini.done{border-color:rgba(46,204,138,.45);opacity:.75}
+.mini .t{min-width:0}
+.mini .t b{color:var(--gold)}
+.mini .t div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list{font-size:12px;line-height:1.8;color:var(--dim)}
+.list b{color:var(--text)}
+.stagebox{background:repeating-linear-gradient(0deg,transparent 0 23px,rgba(255,255,255,.02) 23px 24px),repeating-linear-gradient(90deg,transparent 0 23px,rgba(255,255,255,.02) 23px 24px),var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:grid;place-items:center;min-height:300px}
+#stage{max-width:100%;max-height:68vh;width:auto;height:auto;display:block;box-shadow:0 18px 50px rgba(0,0,0,.5);border-radius:3px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;padding:7px 11px;cursor:pointer;font-size:10.5px;letter-spacing:1px;color:var(--dim)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--teal);color:#04131A}
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:12px}
+.tile{background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:8px;cursor:pointer;text-align:left;min-width:0}
+.tile[aria-pressed="true"]{border-color:var(--teal)}
+.tile canvas{width:100%;height:auto;display:block;border-radius:4px}
+.tile small{display:block;font-size:10px;color:var(--dim);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:11.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:9.5px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;font-weight:400;background:var(--s2)}
+tr:last-child td{border-bottom:0}
+td .ctrl{padding:6px 8px;font-size:11.5px}
+.empty{padding:28px;text-align:center;color:var(--dim);font-size:12px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px}
+.price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.price{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--s1)}
+.price.pop{border-color:var(--gold)}
+.price h4{font-family:Cinzel,serif;letter-spacing:3px;font-size:13px}
+.price .amt{font-size:26px;font-weight:700;color:var(--teal);margin:8px 0 0}
+.price .per{font-size:10.5px;color:var(--dim)}
+.price ul{list-style:none;margin-top:10px;display:grid;gap:5px;font-size:11.5px;color:var(--dim)}
+.price li::before{content:"✓ ";color:var(--green)}
+.ep{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}
+.ep b{color:var(--gold)}
+.ep:last-child{border-bottom:0}
+.note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.6}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:9px 14px;font-size:11px;letter-spacing:1px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+#toast.on{opacity:1}
+#modal{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px}
+#modal.on{display:flex}
+.mbox{background:var(--s2);border:1px solid var(--line2);border-radius:12px;padding:16px;width:min(640px,100%);max-height:90vh;overflow:auto}
+.mbox textarea{min-height:240px;font-size:11.5px}
+.mbox img{max-width:100%;display:block;margin-top:8px;border-radius:6px}
+.banner{border:1px solid rgba(255,201,60,.4);background:rgba(255,201,60,.07);border-radius:9px;padding:10px 12px;font-size:11.5px;color:var(--gold);margin-bottom:14px}
+/* v11: composer + platforms */
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:7px}
+.bcard{background:var(--s2);border:1px solid var(--line);border-radius:8px;padding:8px 9px;text-align:left;cursor:pointer;display:flex;gap:8px;align-items:center;min-width:0;color:var(--text)}
+.bcard:hover{border-color:var(--line2)}
+.bcard[aria-pressed="true"]{border-color:var(--teal);background:rgba(0,212,255,.09)}
+.bcard .tx{min-width:0;flex:1}
+.bcard .tx b{display:block;font-size:11.5px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bcard .tx small{display:block;font-size:9.5px;color:var(--dim);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bcard .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.ptile{width:30px;height:30px;border-radius:7px;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;font-size:10.5px;font-weight:700;flex:none}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.pcard{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:9px;min-width:0}
+.pcard.on{border-color:rgba(46,204,138,.5);background:rgba(46,204,138,.04)}
+.pcard .ph{display:flex;gap:9px;align-items:center;min-width:0}
+.pcard .ph .tx{flex:1;min-width:0}
+.pcard .ph b{display:block;font-size:12px;font-weight:400}
+.pcard .ph small{display:block;font-size:9.5px;color:var(--dim);letter-spacing:.5px}
+.pcard .pf{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--dim)}
+.pcs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pc{display:inline-flex;border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.pc a,.pc button{background:none;border:0;color:var(--dim);font-size:10.5px;padding:4px 9px;text-decoration:none;cursor:pointer}
+.pc a:hover,.pc button:hover{color:var(--teal)}
+.pc .tick{border-left:1px solid var(--line);padding:4px 8px}
+.pc.done{border-color:var(--green);background:rgba(46,204,138,.08)}
+.pc.done a,.pc.done button{color:var(--green)}
+.pre{white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.65;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;min-height:150px;font-family:inherit}
+/* Taluna */
+.tl{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:900px){.tl{grid-template-columns:minmax(0,1fr)}}
+.tl-side{padding:12px 0;position:sticky;top:calc(var(--toph,52px) + 48px);max-height:calc(100vh - var(--toph,52px) - 60px);overflow-y:auto}
+@media(max-width:900px){.tl-side{position:relative;top:0;max-height:none}}
+.tl-side .lbl{padding:0 14px}
+.tl-year{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;font-size:11px;color:var(--gold);letter-spacing:1px}
+.tl-year .btn{padding:4px 10px}
+.moon-btn{display:flex;align-items:center;gap:9px;width:100%;padding:8px 14px;background:none;border:0;border-left:2px solid transparent;cursor:pointer;text-align:left;color:var(--dim)}
+.moon-btn:hover{background:var(--s2)}
+.moon-btn[aria-pressed="true"]{background:var(--s2);border-left-color:var(--gold);color:var(--text)}
+.moon-btn b{font-size:10px;width:18px;color:var(--dim)}
+.moon-btn span{flex:1;min-width:0}
+.moon-btn .nm{display:block;font-family:Cinzel,serif;font-size:12.5px;letter-spacing:1px}
+.moon-btn .mn{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:13px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.moon-btn i{width:8px;height:8px;border-radius:50%;flex:none}
+.moon-btn.now .nm::after{content:" ·  now";font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);letter-spacing:1px}
+.mh-n{font-size:10.5px;letter-spacing:3px;color:var(--gold)}
+.mh-name{font-family:Cinzel,serif;font-size:34px;letter-spacing:2px;line-height:1.1;margin-top:4px}
+.mh-sub{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:18px;color:var(--dim);margin:4px 0 14px}
+.lw{margin-bottom:8px}
+.lw-l{font-size:10px;letter-spacing:2.5px;color:var(--dim);margin-bottom:4px}
+.lw-d{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dbtn{height:60px;background:var(--s1);border:1px solid var(--line);border-radius:5px;color:var(--dim);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;position:relative;min-width:0;padding:2px}
+.dbtn b{font-size:14px;color:var(--text);font-weight:400}
+.dbtn small{font-size:9px;letter-spacing:.5px;white-space:nowrap}
+.dbtn:hover{border-color:var(--line2)}
+.dbtn.today{border-color:var(--gold)}
+.dbtn[aria-pressed="true"]{background:var(--teal);border-color:var(--teal)}
+.dbtn[aria-pressed="true"] b,.dbtn[aria-pressed="true"] small{color:#04131A}
+.dbtn.has::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--green)}
+.dbtn.sprint::before{content:"";position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:14px;height:2px;border-radius:1px;background:var(--gold)}
+.e-date{font-size:10.5px;letter-spacing:3px;color:var(--gold);margin-bottom:12px;line-height:1.7}
+.e-title{font-family:Cinzel,serif;font-size:28px;letter-spacing:1.5px;line-height:1.15;margin-bottom:14px}
+.e-open{font-family:'Cormorant Garamond',Georgia,serif;font-size:21px;line-height:1.5;color:var(--text);margin-bottom:12px}
+.e-body{font-family:'Cormorant Garamond',Georgia,serif;font-size:18.5px;line-height:1.7;color:#A9C2CE;margin-bottom:12px;white-space:pre-wrap}
+.e-prac{border-left:2px solid var(--line2);padding-left:14px;margin:16px 0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;line-height:1.6}
+.e-prac b{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--teal);display:block;margin-bottom:2px}
+.e-signal{font-family:Cinzel,serif;font-size:19px;letter-spacing:2px;color:var(--gold);text-align:center;margin:20px 0 8px}
+.e-tags{font-size:10.5px;color:var(--dim);text-align:center}
+.e-wait{font-family:Cinzel,serif;letter-spacing:4px;color:var(--teal);padding:30px 0;text-align:center}
+.rh{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:5px;font-size:11px;color:var(--dim)}
+.rh b{color:var(--teal);font-weight:400;width:46px;flex:none}
+.rh span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh.post{background:rgba(255,201,60,.08);color:var(--text)}
+.rh.post b{color:var(--gold)}
+.tl-banner{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;background:linear-gradient(90deg,rgba(255,201,60,.06),rgba(0,212,255,.04))}
+.tl-banner .t{font-family:Cinzel,serif;font-size:16px;letter-spacing:2px}
+.tl-banner .s{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:16px;color:var(--dim)}
+#tl-card{max-width:100%;max-height:62vh;width:auto;height:auto;display:block;margin:0 auto;box-shadow:0 14px 40px rgba(0,0,0,.5);border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="logo"><b>_SIGSCHE</b><small id="ver-lbl">v13.2 · sigsche.co.za</small></div>
+  <div class="stats">
+    <div class="stat"><b id="h-day">–</b><span>Sprint day</span></div>
+    <div class="stat"><b id="h-posted">0/25</b><span>Posted</span></div>
+    <div class="stat"><b id="h-plat">0/33</b><span>Platforms on</span></div>
+    <div class="stat"><b id="h-msg">0</b><span>Agencies messaged</span></div>
+    <div class="stat"><b id="h-demo">0/6</b><span>Demos booked</span></div>
+    <div class="stat"><b id="h-mrr">R0</b><span>Signed MRR / R86,417</span></div>
+  </div>
+  <div class="store" id="store"><i></i><span>Starting…</span></div>
+</header>
+
+<nav id="nav" aria-label="Sections">
+  <a href="#today">Today</a>
+  <a href="#godsview">godsview</a>
+  <a href="#compose">Compose</a>
+  <a href="#posts">Queue</a>
+  <a href="#platforms">Platforms · 33</a>
+  <a href="#accounts">Accounts</a>
+  <a href="#business">Businesses</a>
+  <a href="#taluna">Taluna</a>
+  <a href="#cards">Cards</a>
+  <a href="#outreach">Outreach</a>
+  <a href="#partner">Partner 26%</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#anime">Anime</a>
+  <a href="#export">Export</a>
+</nav>
+
+<main>
+
+<!-- TODAY -->
+<section class="tab" id="tab-today">
+  <h2>TODAY</h2>
+  <p class="sub" id="today-sub"></p>
+  <div class="tl-banner" id="today-taluna"></div>
+  <div class="kpis" id="today-kpis"></div>
+  <div class="grid2">
+    <div class="card"><h3 id="today-posts-h">Today's posts</h3><div id="today-posts"></div></div>
+    <div class="stack">
+      <div class="card gold"><h3>Today's outreach</h3><div id="today-out"></div></div>
+      <div class="card"><h3>The plan</h3>
+        <div class="list">
+          <b>8 days · 3 posts a day · outreach first.</b><br>
+          08:17 _locare product post · 12:12 proof or tenant app · 19:19 anime, white-label or partner. Wed 11 Nov adds an 11:11 anime drop for the 11|11 portal.<br><br>
+          <b>Outreach:</b> 10 agencies a day. Days 1–4 East London, days 5–8 Durban. Follow up on day 3.<br>
+          <b>Targets by Tue 17 Nov:</b> 6 demos booked, 2 pilots signed. R86,417 MRR is the number those pilots grow into.<br><br>
+          Posting is one tap per platform from the Posts tab. The VPS runner can take over automatic posting from the Export tab's queue file.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPOSE -->
+<section class="tab" id="tab-compose">
+  <h2>SIGNAL COMPOSER</h2>
+  <p class="sub">One signal, every platform. Pick the brand, pick the platforms, write it once and queue it. It lands in the Queue with its card and a chip for each platform.</p>
+  <div class="grid2">
+    <div class="stack">
+      <div class="card"><h3>Brand · <span id="c-bcount"></span></h3><div class="bgrid" id="c-brands"></div></div>
+      <div class="card"><h3>Platforms · <span id="c-pcount"></span></h3>
+        <div class="btns" style="margin:0 0 10px"><button class="btn" data-act="cmpSet" data-v="all">All 33</button><button class="btn" data-act="cmpSet" data-v="on">My active set</button><button class="btn" data-act="cmpSet" data-v="none">None</button></div>
+        <div class="bgrid" id="c-plats"></div>
+      </div>
+      <form class="card" id="c-form" autocomplete="off"><input type="hidden" name="csrf_token" value="">
+        <h3>Signal</h3>
+        <label class="lbl" for="c-hook" style="margin-top:0">Card headline (optional)</label><input class="ctrl" id="c-hook" maxlength="70" placeholder="Left empty, the card uses your first line">
+        <label class="lbl" for="c-body">Message</label><textarea class="ctrl" id="c-body" placeholder="Write the signal. The demo link and tags are added for you."></textarea>
+        <div class="fgrid">
+          <div><span class="lbl">Media type</span><div class="chips" id="c-media" style="margin:0"></div></div>
+          <div><label class="lbl" for="c-cta">Call to action</label><select class="ctrl" id="c-cta"><option value="demo">Demo link</option><option value="partner">Partner 26% link</option><option value="none">No link</option></select></div>
+        </div>
+        <div class="fgrid">
+          <div><label class="lbl" for="c-date">Date</label><input class="ctrl" type="date" id="c-date"></div>
+          <div><label class="lbl" for="c-time">Angel time</label><select class="ctrl" id="c-time"></select></div>
+        </div>
+        <label class="lbl" for="c-tags">Tags</label><input class="ctrl" id="c-tags" maxlength="200">
+        <div class="btns"><button class="btn teal" type="submit">Queue signal</button><button class="btn" type="button" data-act="cmpTpl">Load template</button><button class="btn gold" type="button" data-act="cmpDraft" id="c-draft" hidden>Draft with Claude</button><button class="btn teal" type="button" data-act="cmpVideo" id="c-video" hidden>Make video (.webm)</button></div>
+      </form>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>Live preview · <span id="c-handle"></span></h3><pre class="pre" id="c-prev"></pre><div class="kpis" style="margin:12px 0 0" id="c-stats"></div><p class="note" id="c-fit"></p></div>
+      <div class="card"><h3>Card</h3><canvas id="c-card" style="width:100%;height:auto;border-radius:6px;display:block" aria-label="Card preview"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="tab" id="tab-platforms">
+  <h2>PLATFORMS · ALL 33 ON ONE DASHBOARD</h2>
+  <p class="sub">Switch a platform on and it joins every sprint post and becomes the composer's default set. Save your handle or page link so the dashboard knows where you live. The post counts are your own ticks from the Queue, so every number here is real.</p>
+  <div class="kpis" id="plat-kpis"></div>
+  <div class="chips" id="plat-filter"></div>
+  <div class="pgrid" id="plat-grid"></div>
+  <div class="card" style="margin-top:14px"><h3>How posting works</h3>
+    <div class="list"><b>One-tap share</b> (12 platforms): the chip opens the platform with your caption already in the post box.<br>
+    <b>Copy + open</b> (19 platforms): the chip copies the caption and opens the platform, where you paste it and attach the card.<br>
+    <b>Copy · post in app</b> (2 platforms): phone-only apps. The chip copies the caption for you.<br><br>
+    <b>Sign-in and upload</b> run in the localhost edition, served by your master MCP at <b>http://localhost:8641</b>. There, <b>Log in</b> opens the platform in the sigsche browser (its own Chrome window that keeps your sessions), and each Queue chip becomes <b>Upload ↑</b>: it opens the post box in that signed-in window, attaches the card and fills the caption, and you press Post. Bluesky, Mastodon, Telegram and Discord can post fully automatically once you save an API token. Mxit closed years ago, so its slot now holds Google Business Profile, which is where agencies get found locally.</div>
+  </div>
+</section>
+
+<!-- ACCOUNTS -->
+<section class="tab" id="tab-accounts">
+  <h2>ACCOUNTS · EVERY HANDLE YOU POST FROM</h2>
+  <p class="sub">A platform can hold more than one account. Add every handle here, say which business each one speaks for, and mark the primary. A handle tied to a business takes that business's posts; a handle tied to none takes anything that has no handle of its own. Switched off means it receives nothing. No passwords are kept here, ever.</p>
+  <div class="kpis" id="acct-kpis"></div>
+  <div class="card"><h3>Add a handle</h3>
+    <form id="acct-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center"><input type="hidden" name="csrf_token" value="">
+      <select class="ctrl" id="a-plat" aria-label="Platform" style="min-width:150px"></select>
+      <input class="ctrl" id="a-email" type="email" maxlength="120" aria-label="Email this account signs in with" placeholder="email (optional)" style="flex:1;min-width:170px">
+      <input class="ctrl" id="a-handle" maxlength="120" aria-label="Username or page link" placeholder="@username or page link" style="flex:1;min-width:170px">
+      <input class="ctrl" id="a-label" maxlength="40" aria-label="What this account is" placeholder="What it is, e.g. main page" style="min-width:150px">
+      <select class="ctrl" id="a-brand" aria-label="Business" style="min-width:140px"></select>
+      <button class="btn green" type="submit">Add</button>
+    </form>
+    <p class="note">The first handle on a platform becomes its primary automatically. Up to 8 per platform.</p>
+  </div>
+  <div class="chips" id="acct-filter"></div>
+  <div class="pgrid" id="acct-grid"></div>
+  <div class="card" style="margin-top:14px"><h3>Signing in with more than one account</h3>
+    <div class="list">The sigsche browser keeps <b>one signed-in session per platform per profile</b>. Two handles on the same platform cannot both be signed in on <b>main</b> at the same time.<br><br>
+    Give the second handle its own <b>session</b> name and sign in there yourself when you post from it. Session names are a label for now: sigsche runs the one browser profile, so a second profile is still to be built.<br><br>
+    Platforms with an API token (Bluesky, Mastodon, Telegram, Discord) post without a browser, but the token is saved per platform, not per handle. Per-handle tokens come next.</div>
+  </div>
+</section>
+
+<!-- TALUNA -->
+<!-- GODSVIEW -->
+<section class="tab" id="tab-godsview">
+  <h2>GODSVIEW · THE PROPERTY, LIVE</h2>
+  <p class="sub">One screen for the property, read straight from tanOS and refreshed every 15 seconds: every room, who has paid since the 28th, who is behind, notices sent and open maintenance. It only reads. Nothing here sends a notice or changes a record.</p>
+  <div class="kpis" id="gv-kpis"></div>
+  <div class="pgrid" id="gv-grid"></div>
+  <p class="note" id="gv-foot"></p>
+</section>
+
+<!-- BUSINESSES -->
+<section class="tab" id="tab-business">
+  <h2>BUSINESSES · THE REGISTER</h2>
+  <p class="sub">Every business sigsche posts for, each with its own record. A field left empty stays marked open, so nothing is guessed. For group businesses, the domain saved here is the link their posts and cards carry.</p>
+  <div class="kpis" id="biz-kpis"></div>
+  <div class="chips" id="biz-filter"></div>
+  <div class="pgrid" id="biz-grid"></div>
+  <div class="card" style="margin-top:14px"><h3>Add a business</h3>
+    <form id="biz-form" style="display:flex;gap:9px;flex-wrap:wrap;align-items:center"><input type="hidden" name="csrf_token" value="">
+      <input class="ctrl" id="b-name" maxlength="40" aria-label="Business name" placeholder="Business name" style="flex:1;min-width:180px">
+      <input type="color" id="b-color" value="#7DA2FF" aria-label="Brand colour" style="width:44px;height:38px;padding:0;border:0;background:none">
+      <button class="btn green" type="submit">Add</button>
+    </form>
+    <p class="note">It joins the Group set and becomes a brand you can compose for. Its mark and colours are set properly in the brand kit step.</p>
+  </div>
+</section>
+
+<section class="tab" id="tab-taluna">
+  <h2>TALUNA CALENDAR · MAKTOOF</h2>
+  <p class="sub">A Year of Miracles with dantalan. Time anchored in Creation, Moon and Stars, grounded on Earth: 13 moons of 28 days from 1 March, and one day to spend with God. 13 × 28 = 364, and 3 + 6 + 4 = 13.</p>
+  <div class="tl">
+    <aside class="card tl-side" aria-label="Moons">
+      <div class="tl-year"><button class="btn" data-act="tlYear" data-v="-1" aria-label="Previous Taluna year">‹</button><span id="tl-yearlbl"></span><button class="btn" data-act="tlYear" data-v="1" aria-label="Next Taluna year">›</button></div>
+      <div style="padding:0 14px 6px"><div class="seg" id="tl-names" role="group" aria-label="Moon names"></div></div>
+      <p class="lbl">13 moons · 28 days</p>
+      <div id="tl-moons"></div>
+      <p class="lbl" style="margin-top:14px">Outside the moons</p>
+      <div id="tl-god"></div>
+      <div class="btns" style="padding:0 14px"><button class="btn gold" data-act="tlToday">Go to today</button></div>
+    </aside>
+    <div style="min-width:0">
+      <div id="tl-head"></div>
+      <div id="tl-grid"></div>
+      <div class="grid2" style="margin-top:14px">
+        <div class="stack">
+          <div class="card" id="tl-entry"></div>
+          <div class="card">
+            <h3>Devotional card</h3>
+            <div class="btns" style="margin:0 0 12px;justify-content:space-between">
+              <div class="seg" id="tl-fmt" role="group" aria-label="Card format"></div>
+              <div class="seg" id="tl-ground" role="group" aria-label="Card ground"></div>
+            </div>
+            <canvas id="tl-card" width="1080" height="1080" aria-label="Devotional card preview"></canvas>
+            <div class="btns"><button class="btn teal" data-act="tlPng">Save card PNG</button><button class="btn" data-act="tlFormats">All 3 formats · ZIP</button><button class="btn" data-act="tlMoonZip">This moon's cards · ZIP</button></div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="card"><h3>Sacred time</h3><div class="list" id="tl-sacred"></div></div>
+          <div class="card"><h3>The day's rhythm · 13 times</h3><div id="tl-rhythm"></div><p class="note">Gold rows carry a sprint post. The other times are the day's rhythm, from 05:55 Rise to 21:21 Night.</p></div>
+          <div class="card"><h3>Ecosystem layer · v8</h3><div class="list" id="tl-layer"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- POSTS -->
+<section class="tab" id="tab-posts">
+  <h2>QUEUE · SPRINT + YOUR SIGNALS</h2>
+  <p class="sub">The sprint's 25 posts, plus every signal you queue in Compose, each with a card. Edit any headline, card line or caption and press Save edits. Copy the caption, save the card, post it, then mark it posted. <span id="q-how">Each platform chip opens that platform with the caption ready or copied. Tick ✓ when it is posted there.</span></p>
+  <div class="chips" id="day-chips"></div>
+  <div id="post-list"></div>
+</section>
+
+<!-- CARDS -->
+<section class="tab" id="tab-cards">
+  <h2>CARDS · SUPANOVA ENGINE</h2>
+  <p class="sub">Every post gets a card in its brand's mark, built on the supaNOVA Card Studio engine: wordmark, 86417 rule, ONE. seal and a QR code to that brand's tracked demo link. For business cards, the 3D wall and reels, open <a href="https://claude.ai/artifact/KGtyvwZVUYWVm8isQhiACZ" target="_blank" rel="noopener">supaNOVA Card Studio</a>.</p>
+  <div class="grid2">
+    <div class="stack">
+      <div class="btns" style="margin:0;justify-content:space-between;align-items:center">
+        <div class="seg" id="fmt-seg" role="group" aria-label="Format"></div>
+        <div class="seg" id="ground-seg" role="group" aria-label="Ground"></div>
+      </div>
+      <div class="stagebox"><canvas id="stage" width="1080" height="1080" aria-label="Card preview"></canvas></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <label class="lbl" for="card-post" style="margin-top:0">Post</label>
+        <select class="ctrl" id="card-post"></select>
+        <p class="note" id="card-dims"></p>
+        <div class="btns">
+          <button class="btn teal" data-act="cardPng">Save PNG</button>
+          <button class="btn" data-act="cardFormats">All 3 formats · ZIP</button>
+          <button class="btn" data-act="cardDay">This day's cards · ZIP</button>
+          <button class="btn gold" data-act="cardAll">All cards · ZIP</button>
+        </div>
+        <p class="note">Square for Instagram and Facebook feeds, Story for WhatsApp status, Stories and TikTok covers, Link for LinkedIn and X.</p>
+      </div>
+    </div>
+  </div>
+  <div class="wall" id="wall"></div>
+</section>
+
+<!-- OUTREACH -->
+<section class="tab" id="tab-outreach">
+  <h2>OUTREACH · AGENCY PIPELINE</h2>
+  <p class="sub">Where the sales actually come from. Add each agency you contact, message them on WhatsApp with the script, and move the stage as it moves. Export to Close as CSV from the Export tab.</p>
+  <div class="kpis" id="out-kpis"></div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="btns" style="margin:0 0 12px">
+      <select class="ctrl" id="f-city" style="width:auto" aria-label="Filter by city"></select>
+      <select class="ctrl" id="f-stage" style="width:auto" aria-label="Filter by stage"></select>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Agency</th><th>City · units</th><th>Plan</th><th>Stage</th><th>Notes</th><th>Message</th><th></th></tr></thead>
+      <tbody id="lead-body"></tbody>
+    </table></div>
+  </div>
+  <div class="grid2">
+      <form class="card gold" id="lead-form" autocomplete="off"><input type="hidden" name="csrf_token" value="">
+        <h3>Add an agency</h3>
+        <label class="lbl" for="l-agency">Agency *</label><input class="ctrl" id="l-agency" required maxlength="80">
+        <div class="fgrid">
+          <div><label class="lbl" for="l-contact">Contact person</label><input class="ctrl" id="l-contact" maxlength="60"></div>
+          <div><label class="lbl" for="l-phone">WhatsApp / phone</label><input class="ctrl" id="l-phone" maxlength="20" inputmode="tel"></div>
+        </div>
+        <label class="lbl" for="l-email">Email</label><input class="ctrl" id="l-email" maxlength="80" type="email">
+        <div class="fgrid">
+          <div><label class="lbl" for="l-city">City</label><select class="ctrl" id="l-city"></select></div>
+          <div><label class="lbl" for="l-units">Units managed</label><select class="ctrl" id="l-units"></select></div>
+        </div>
+        <label class="lbl" for="l-notes">Notes</label><input class="ctrl" id="l-notes" maxlength="200">
+        <div class="btns"><button class="btn teal" type="submit">Add agency</button></div>
+      </form>
+      <div class="card"><h3>Message scripts</h3><div id="scripts"></div></div>
+  </div>
+</section>
+
+<!-- PARTNER -->
+<section class="tab" id="tab-partner">
+  <h2>PARTNER · 26% RECURRING</h2>
+  <p class="sub">Flat 26% for as long as the referred agency stays. The plan only sets the size of the fee. The live site describes the programme (vetted partners, KYC/KYB, recurring payouts) but doesn't print the rate, so keep the rate consistent everywhere you publish it.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>Commission calculator</h3>
+      <div class="fgrid">
+        <div><label class="lbl" for="p-s">Starter referrals</label><input class="ctrl" id="p-s" type="number" min="0" value="2"></div>
+        <div><label class="lbl" for="p-g">Growth referrals</label><input class="ctrl" id="p-g" type="number" min="0" value="5"></div>
+        <div><label class="lbl" for="p-sc">Scale referrals</label><input class="ctrl" id="p-sc" type="number" min="0" value="2"></div>
+      </div>
+      <label class="lbl">Commission is calculated on</label>
+      <div class="seg" id="basis-seg" role="group" aria-label="Commission basis"></div>
+      <div class="kpis" style="margin-top:14px" id="p-out"></div>
+      <p class="note" id="p-note"></p>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>Partner link</h3>
+        <label class="lbl" for="p-code">Partner code</label><input class="ctrl" id="p-code" value="_locare" maxlength="40">
+        <label class="lbl">Tracked link</label><input class="ctrl" id="p-link" readonly>
+        <div class="btns"><button class="btn teal" data-act="copyPartner">Copy link</button></div>
+      </div>
+      <div class="card"><h3>Per referral, per month</h3><div class="list" id="p-per"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="tab" id="tab-pricing">
+  <h2>PRICING · AS ON LOCARE.CO.ZA</h2>
+  <p class="sub">Checked against the live site on 9 Nov 2026. Flat monthly fee per unit band, VAT included at 15%. Under 70 units is priced individually.</p>
+  <div class="price-grid" id="price-grid"></div>
+</section>
+
+<!-- ANIME -->
+<section class="tab" id="tab-anime">
+  <h2>ANIME · _BAATJIE: NODE ONE</h2>
+  <p class="sub">The full series bible from v7, with v8's 13-moon mapping. Kept separate from TGTBTBAT. Four episodes land in this sprint.</p>
+  <div class="grid2">
+    <div class="stack">
+      <div class="card gold">
+        <h3>Logline</h3>
+        <p class="list">Malome _baatjie builds sovereign property nodes across Azania. Each episode, a new tenant archetype tries to break the system. _locare and _tanos win. Every episode ends on the demo link and the 26% partner call.</p>
+        <h3 style="margin-top:14px">Style</h3>
+        <p class="list">Afro-anime, Azania urban, blue-collar spiritual. Space Mono UI overlays, taluna time stamps. Hopeful: the system wins. (TGTBTBAT is the documentary, live-action tenant horror. Separate playlists.)</p>
+      </div>
+      <div class="card"><h3>Season 1 · 10 × 3 min</h3><div id="eps"></div></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>Characters</h3>
+        <div class="list">
+          <b>_baatjie</b>: malome, landlord, blue-collar sage, wears the blue baatjie<br>
+          <b>_dantalan</b>: signal operator, runs sigscheONE<br>
+          <b>_talandan</b>: land keeper, secures nodes<br>
+          <b>_tanos</b>: tenant fairy who lives in the phone, onboards in 90 seconds<br>
+          <b>_locare</b>: OS spirit, reconciles the ledger<br>
+          <b>_sigsche</b>: rectro tec lab, the lab kids building the dePin nodes<br>
+          <b>_unuta media</b>: broadcast crew filming the proof
+        </div>
+      </div>
+      <div class="card"><h3>End card · every episode</h3>
+        <div class="list">locare.co.za/demo<br>Partner 26%: share the demo, earn recurring<br>Built by _baatjie · _sigsche · _unuta media</div>
+      </div>
+      <div class="card"><h3>Year of Miracles · 13 moons (v8)</h3><div class="list" id="moons"></div></div>
+      <div class="card"><h3>Assets needed</h3>
+        <div class="list">Character sheets for the 7 core characters · 7 white-label city skins · Node 1 building turnaround · 3-minute cut plus 15-second teaser per episode</div>
+        <div class="btns"><button class="btn gold" data-act="bible">Save bible (.txt)</button><button class="btn" data-act="bibleCopy">Copy bible</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXPORT -->
+<section class="tab" id="tab-export">
+  <h2>EXPORT · SETTINGS</h2>
+  <p class="sub">Every file reflects your current edits. If saving isn't available in this view, the text opens for you to copy.</p>
+  <div class="grid3">
+    <div class="card"><h3>Calendar</h3><p class="list">The 25 posts as calendar events at their SAST times, each with the caption and link. Import into Google Calendar. On claude.ai it arrives inside a .zip, because calendar files can't be saved there directly.</p><div class="btns"><button class="btn teal" data-act="ics">Save .ics</button></div></div>
+    <div class="card"><h3>VPS runner queue</h3><p class="list">Same shape as the September sprint file (<b>queue</b> and <b>events</b>), so sprint_runner.py can post it on schedule. Unposted posts only.</p><div class="btns"><button class="btn teal" data-act="queue">Save queue .json</button></div></div>
+    <div class="card"><h3>Leads for Close</h3><p class="list">Every agency in the pipeline as CSV with Close-friendly columns: Company, Contact Name, Phone, Email, City, Status, Notes.</p><div class="btns"><button class="btn teal" data-act="csv">Save leads .csv</button></div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="card"><h3>_baatjie MCP signals</h3><p class="list">Every unposted post and signal, shaped as the arguments of <b>baatjie_schedule_signal</b>: brand_id, brand_name, caption, platforms, scheduled_date, scheduled_time, media. The caller adds the sigscheCore profile id (user_id).</p><div class="btns"><button class="btn teal" data-act="mcp">Save MCP signals .json</button></div></div>
+    <div class="card"><h3>File names</h3><div class="list" id="fn-list"></div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <form class="card" id="settings-form" autocomplete="off"><input type="hidden" name="csrf_token" value="">
+      <h3>Settings</h3>
+      <div class="fgrid">
+        <div><label class="lbl" for="s-start">Sprint start (day 1)</label><input class="ctrl" id="s-start" type="date"></div>
+        <div><label class="lbl" for="s-sender">Your name in messages</label><input class="ctrl" id="s-sender" maxlength="40"></div>
+        <div><label class="lbl" for="s-per">Agencies to message per day</label><input class="ctrl" id="s-per" type="number" min="1" max="100"></div>
+        <div><label class="lbl" for="s-demos">Demo target</label><input class="ctrl" id="s-demos" type="number" min="1" max="100"></div>
+        <div><label class="lbl" for="s-pilots">Pilot target</label><input class="ctrl" id="s-pilots" type="number" min="1" max="100"></div>
+        <div><label class="lbl" for="s-proof">Proof label on cards</label><input class="ctrl" id="s-proof" maxlength="48"></div>
+      </div>
+      <p class="note">The proof label leaves out the street address and suburb by default, which keeps tenants' home address out of public posts and Randburg dark. Change it here if you decide otherwise.</p>
+      <div class="btns"><button class="btn teal" type="submit">Save settings</button></div>
+    </form>
+    <div class="stack">
+      <div class="card"><h3>Storage</h3><p class="list" id="store-note"></p><div class="btns" id="migrate-box"></div></div>
+      <div class="card"><h3>Backup</h3><p class="list">Everything (settings, post edits, posted marks, leads) in one JSON file.</p><div class="btns"><button class="btn" data-act="backup">Save backup .json</button><button class="btn" data-act="impPick">Import a backup</button><input type="file" id="imp" accept=".json,application/json" hidden></div><p class="note">Import brings a backup from another copy of sigsche (for example claude.ai → localhost) into this one.</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title"><div class="mbox">
+  <h3 id="m-title" style="text-transform:none;letter-spacing:.5px">Copy</h3><p class="note" id="m-note" style="margin:0 0 8px"></p>
+  <div id="m-body"></div>
+  <div class="btns"><button class="btn teal" data-act="mSelect" id="m-select">Select all</button><button class="btn" data-act="mClose">Close</button></div>
+</div></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
